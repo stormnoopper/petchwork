@@ -82,3 +82,6 @@
 
 ## D-027 · 2026-10-10 · Orchestrator (ตามที่ผู้ใช้สั่ง)
 **Dev login bypass** — ระหว่างยังไม่ตั้ง Google OAuth ใช้ Credentials provider `dev-bypass` (ผู้ใช้สังเคราะห์ `uuidv5('dev:local-tester')`, email `dev@localhost`) เปิดเฉพาะ `AUTH_DEV_BYPASS=1` **และ** `NODE_ENV !== 'production'` (ตรวจทั้งตอนสร้าง provider, signIn callback และ server action) · ห้ามตั้ง `AUTH_DEV_BYPASS` ใน env ของ production
+
+## D-028 · 2026-10-10 · Orchestrator
+**Seed ขอบเขต 77 จังหวัดจริง** (`supabase/seed_provinces.sql`, GISTDA 1:50k simplify 0.002°, ~0.6 MB) โหลดหลัง `seed.sql` แทน bbox หยาบ 3 จังหวัด · ทุกจังหวัดมีแถว `province_coverage` (enabled=false ยกเว้น 44) · แก้ bug: ปักในกรุงเทพได้ `OUTSIDE_THAILAND` → ตอนนี้ได้ `PROVINCE_NOT_ENABLED` · ETL จริงจะ swap ความละเอียดเต็มทับ

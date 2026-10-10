@@ -39,7 +39,7 @@ select is((select r->'data_versions'->>'dgr_groundwater' from t_straddle), 'seed
 -- error paths
 select is(public.analyze_polygon('{"type":"Polygon","coordinates":[[[105.8,17.5],[105.81,17.5],[105.81,17.51],[105.8,17.5]]]}'),
           '{"ok":false,"error":"OUTSIDE_THAILAND"}'::jsonb, 'outside Thailand → OUTSIDE_THAILAND');
-select is(public.analyze_polygon('{"type":"Polygon","coordinates":[[[99.80,14.50],[99.81,14.50],[99.81,14.51],[99.80,14.51],[99.80,14.50]]]}'),
+select is(public.analyze_polygon('{"type":"Polygon","coordinates":[[[100.12,14.47],[100.13,14.47],[100.13,14.48],[100.12,14.48],[100.12,14.47]]]}'),
           '{"ok":false,"error":"PROVINCE_NOT_ENABLED","province_code":"72","province_name_th":"สุพรรณบุรี"}'::jsonb,
           'Suphan Buri → PROVINCE_NOT_ENABLED with province_code + name');
 select is(public.analyze_polygon('{"type":"Point","coordinates":[103.25,16.05]}')->>'error', 'INVALID_POLYGON', 'point → INVALID_POLYGON');
