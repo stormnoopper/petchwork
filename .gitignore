@@ -13,3 +13,5 @@ etl/.venv
 __pycache__
 playwright-report
 test-results
+.vercel
+.env*

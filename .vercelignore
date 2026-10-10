@@ -8,9 +8,9 @@
 node_modules
 **/node_modules
 **/.next
-etl
-supabase
-docs/report
+/etl
+/supabase
+/docs/report
 .claude
 playwright-report
 test-results
