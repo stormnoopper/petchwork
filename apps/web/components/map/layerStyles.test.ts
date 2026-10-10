@@ -1,16 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { MVT_LAYERS } from '@rice/contracts';
+import { createExpression } from '@maplibre/maplibre-gl-style-spec';
+import { MVT_LAYERS, type MvtLayer } from '@rice/contracts';
 import thMap from '@/messages/th.map.json';
 import {
   GEOLOGY_COLORS,
   GW_COLORS,
+  IRRIGATION_COLOR,
   LEGEND,
   SALINE_COLORS,
+  WATER_COLOR,
   availabilityFromCoverage,
   geologyColor,
   groundwaterColor,
+  fillColorExpr,
   isMahaSarakham,
+  lineColorExpr,
   outline,
+  rgbaCss,
   pruneEnabled,
   salineColor,
   soilGroupColor,
@@ -113,5 +119,90 @@ describe('labels & URLs', () => {
   });
   it('tile URL template matches /api/tiles/{layer}/{z}/{x}/{y}', () => {
     expect(tileUrl('saline_soil')).toBe('/api/tiles/saline_soil/{z}/{x}/{y}');
+    // MapLibre fetches from a worker → absolute URL
+    expect(tileUrl('geology', 'http://localhost:3000')).toBe(
+      'http://localhost:3000/api/tiles/geology/{z}/{x}/{y}',
+    );
+  });
+});
+
+// ------------------------------------------------------------------ MapLibre expressions
+// Evaluated with MapLibre's own style-spec engine and compared with the JS ramp helpers,
+// so the map and the legend / tests can never drift apart.
+
+type Rgba = [number, number, number, number];
+
+function evalColor(expr: unknown, properties: Record<string, unknown>): Rgba {
+  if (typeof expr === 'string') return parseCss(expr);
+  const compiled = createExpression(expr, {
+    type: 'color',
+    'property-type': 'data-driven',
+    expression: { interpolated: false, parameters: ['zoom', 'feature'] },
+    transition: false,
+  } as never);
+  if (compiled.result !== 'success') throw new Error(JSON.stringify(compiled.value));
+  const c = compiled.value.evaluate({ zoom: 10 }, { type: 3, properties } as never) as {
+    r: number;
+    g: number;
+    b: number;
+    a: number;
+  };
+  // style-spec colours are premultiplied 0–1 floats
+  if (c.a === 0) return [0, 0, 0, 0];
+  return [
+    Math.round((c.r / c.a) * 255),
+    Math.round((c.g / c.a) * 255),
+    Math.round((c.b / c.a) * 255),
+    Math.round(c.a * 255),
+  ];
+}
+
+function parseCss(css: string): Rgba {
+  const m = /rgba\((\d+), (\d+), (\d+), ([\d.]+)\)/.exec(css);
+  if (!m) throw new Error(css);
+  return [Number(m[1]), Number(m[2]), Number(m[3]), Math.round(Number(m[4]) * 255)];
+}
+
+const close = (a: Rgba, b: Rgba) => {
+  if (b[3] === 0) return expect(a[3]).toBe(0);
+  a.forEach((v, i) => expect(Math.abs(v - b[i]!)).toBeLessThanOrEqual(1));
+};
+
+describe('MapLibre colour expressions match the JS ramps', () => {
+  it('rgbaCss converts 0–255 alpha', () => {
+    expect(rgbaCss([1, 2, 3, 255])).toBe('rgba(1, 2, 3, 1)');
+    expect(rgbaCss([0, 0, 0, 0])).toBe('rgba(0, 0, 0, 0)');
+  });
+
+  const cases: [MvtLayer, Record<string, unknown>, Rgba][] = [
+    ['saline_soil', { salinity_level: 'low' }, salineColor('low')],
+    ['saline_soil', { salinity_level: 'very_high' }, salineColor('very_high')],
+    ['saline_soil', { salinity_level: 'none' }, salineColor('none')],
+    ['saline_soil', {}, salineColor(undefined)],
+    ['groundwater', { ec_dsm: 0.3 }, groundwaterColor(0.3)],
+    ['groundwater', { ec_dsm: 0.75 }, groundwaterColor(0.75)],
+    ['groundwater', { ec_dsm: 0.76 }, groundwaterColor(0.76)],
+    ['groundwater', { ec_dsm: 2 }, groundwaterColor(2)],
+    ['groundwater', { ec_dsm: 2.01 }, groundwaterColor(2.01)],
+    ['groundwater', { ec_dsm: '3.5' }, groundwaterColor('3.5')],
+    ['groundwater', { ec_dsm: 'n/a' }, groundwaterColor('n/a')],
+    ['groundwater', {}, groundwaterColor(null)],
+    ['geology', { is_maha_sarakham: true }, geologyColor({ is_maha_sarakham: true })],
+    ['geology', { is_maha_sarakham: 't' }, geologyColor({ is_maha_sarakham: 't' })],
+    ['geology', { unit_code: 'KTms' }, geologyColor({ unit_code: 'KTms' })],
+    ['geology', { unit_code: ' ktms-1 ' }, geologyColor({ unit_code: ' ktms-1 ' })],
+    ['geology', { unit_code: 'Qa' }, geologyColor({ unit_code: 'Qa' })],
+    ['geology', { unit_code: 'Kkk', is_maha_sarakham: false }, GEOLOGY_COLORS.other as never],
+    ['geology', { unit_code: 'Qa-KTms' }, geologyColor({ unit_code: 'Qa-KTms' })],
+    ['soil_units', { soil_group: '17' }, soilGroupColor('17')],
+    ['soil_units', { soil_group: 4 }, soilGroupColor(4)],
+    ['soil_units', {}, soilGroupColor(null)],
+    ['irrigation', {}, IRRIGATION_COLOR],
+    ['water_bodies', {}, WATER_COLOR],
+  ];
+
+  it.each(cases)('%s %j', (layer, props, expected) => {
+    close(evalColor(fillColorExpr(layer), props), [...expected] as Rgba);
+    close(evalColor(lineColorExpr(layer), props), outline([...expected] as Rgba));
   });
 });

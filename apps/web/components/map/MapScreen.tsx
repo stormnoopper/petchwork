@@ -19,7 +19,8 @@ function MapLoading() {
   );
 }
 
-// Google Maps must never render on the server (SPEC §5.5) — dynamic ssr:false lives in a client component.
+// The map (MapLibre + WebGL) must never render on the server (SPEC §5.5) — dynamic ssr:false lives in a client component;
+// maplibre-gl JS + CSS therefore load only on /map.
 const FieldDrawer = dynamic(() => import('./FieldDrawer'), { ssr: false, loading: MapLoading });
 
 /**

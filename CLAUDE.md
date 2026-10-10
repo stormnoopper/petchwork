@@ -1,13 +1,13 @@
 # CLAUDE.md — Thai Rice Digital Twin
 
-เว็บให้เกษตรกรปัก 4 มุมแปลงนาบน Google Maps แล้วประเมิน น้ำ / ผลผลิต / ก๊าซเรือนกระจก / ความเค็ม ทั้งปัจจุบันและ 5–10 ปี
+เว็บให้เกษตรกรปัก 4 มุมแปลงนาบนแผนที่ภาพถ่ายดาวเทียม แล้วประเมิน น้ำ / ผลผลิต / ก๊าซเรือนกระจก / ความเค็ม ทั้งปัจจุบันและ 5–10 ปี
 
 **แหล่งความจริงเดียว: `docs/SPEC.md`** — อ่านหัวข้อที่เกี่ยวกับงานก่อนลงมือทุกครั้ง
 - แหล่งข้อมูลและผล probe: `docs/DATA_SOURCES.md`
 - การตัดสินใจนอกสเปก: `docs/DECISIONS.md` (เพิ่มรายการใหม่ทุกครั้งที่เลือกทางเอง)
 
 ## Stack
-pnpm workspaces · Next.js 15 App Router + TS strict (`apps/web`) · Tailwind + shadcn/ui · Supabase (Postgres + PostGIS) · Auth.js v5 (Google only, ไม่ใช้ Supabase Auth) · `@vis.gl/react-google-maps` · vitest · Playwright
+pnpm workspaces · Next.js 15 App Router + TS strict (`apps/web`) · Tailwind + shadcn/ui · Supabase (Postgres + PostGIS) · Auth.js v5 (Google only, ไม่ใช้ Supabase Auth) · MapLibre GL JS (`maplibre-gl`) + Esri World Imagery (ฟรี ไม่ใช้ key, D-030) · vitest · Playwright
 
 ## โครงสร้าง
 - `packages/contracts` — zod schema + types ที่ทุกส่วนใช้ร่วม (**Orchestrator เป็นเจ้าของ** ห้ามประกาศ type ซ้ำที่อื่น)

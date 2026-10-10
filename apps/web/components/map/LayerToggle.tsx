@@ -1,20 +1,25 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useMap } from '@vis.gl/react-google-maps';
+import { useEffect, useMemo, useState } from 'react';
+import type { ErrorEvent, Map as MaplibreMap } from 'maplibre-gl';
 import { Check, Layers, Loader2, X } from 'lucide-react';
-import type { MvtLayer } from '@rice/contracts';
+import { MVT_LAYERS, type MvtLayer } from '@rice/contracts';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { DeckOverlayHandle } from './deckOverlay';
+import { DATA_LAYERS_BEFORE_ID } from './basemap';
 import {
   LEGEND,
   NO_LDD,
   cssColor,
+  fillColorExpr,
+  lineColorExpr,
+  lineWidth,
   pruneEnabled,
+  tileUrl,
   toggleLayer,
   visibleLayers,
   type LayerAvailability,
 } from './layerStyles';
+import { useMap } from './mapContext';
 import { mapMessages as m } from './messages';
 
 export type { LayerAvailability } from './layerStyles';
@@ -30,8 +35,9 @@ type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 const legendText = m.layers.legend as Record<string, string>;
 
 /**
- * SPEC §5.3 map layer switcher. All layers off by default; deck.gl is imported lazily the
- * first time a layer is enabled. Must render inside <APIProvider> (uses `useMap()`).
+ * SPEC §5.3 map layer switcher. All layers off by default; each layer is a native MapLibre
+ * vector source (our `/api/tiles` MVT) added the first time it is switched on and hidden
+ * (not removed) when switched off. Must render inside FieldDrawer's MapContext.
  */
 export function LayerToggle({ lddAvailable = NO_LDD, className }: Props) {
   const [open, setOpen] = useState(false);
@@ -39,7 +45,7 @@ export function LayerToggle({ lddAvailable = NO_LDD, className }: Props) {
   const offered = useMemo(() => visibleLayers(lddAvailable), [lddAvailable]);
   // LDD may disappear after a new analyze → never render a layer that is no longer offered.
   const enabled = useMemo(() => pruneEnabled(rawEnabled, lddAvailable), [rawEnabled, lddAvailable]);
-  const load = useDeckOverlay(enabled);
+  const load = useMvtLayers(enabled);
   const lddHidden = !lddAvailable.soil || !lddAvailable.saline;
 
   return (
@@ -191,52 +197,96 @@ function Legend({ enabled }: { enabled: MvtLayer[] }) {
   );
 }
 
-/** Creates the deck.gl GoogleMapsOverlay on first use (lazy import) and keeps its layers in sync. */
-function useDeckOverlay(enabled: MvtLayer[]): LoadState {
+const POLYGON: unknown = ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]];
+const POINT: unknown = ['in', ['geometry-type'], ['literal', ['Point', 'MultiPoint']]];
+
+const sourceId = (l: MvtLayer) => `mvt-${l}`;
+const styleLayerIds = (l: MvtLayer) => [`mvt-${l}-fill`, `mvt-${l}-line`, `mvt-${l}-point`];
+
+/** Adds source + fill/line/point layers for `layer`, keeping contract order below the labels. */
+function addMvtLayer(map: MaplibreMap, layer: MvtLayer) {
+  map.addSource(sourceId(layer), {
+    type: 'vector',
+    tiles: [tileUrl(layer, window.location.origin)],
+    minzoom: 0,
+    maxzoom: 14, // server simplifies per zoom; MapLibre over-zooms beyond 14
+  });
+  // next contract layer already on the map (if any) → insert below it; else below the labels
+  const after = MVT_LAYERS.slice(MVT_LAYERS.indexOf(layer) + 1).find((l) => map.getSource(sourceId(l)));
+  const before = after ? styleLayerIds(after)[0] : DATA_LAYERS_BEFORE_ID;
+  const [fillId, lineId, pointId] = styleLayerIds(layer) as [string, string, string];
+  const common = { source: sourceId(layer), 'source-layer': layer } as const;
+  map.addLayer(
+    {
+      id: fillId,
+      type: 'fill',
+      ...common,
+      filter: POLYGON as never,
+      paint: { 'fill-color': fillColorExpr(layer) as never, 'fill-antialias': false },
+    },
+    before,
+  );
+  map.addLayer(
+    {
+      id: lineId,
+      type: 'line',
+      ...common,
+      filter: ['!', POINT] as never,
+      paint: { 'line-color': lineColorExpr(layer) as never, 'line-width': lineWidth(layer) },
+    },
+    before,
+  );
+  map.addLayer(
+    {
+      id: pointId,
+      type: 'circle',
+      ...common,
+      filter: POINT as never,
+      paint: {
+        'circle-radius': 4,
+        'circle-color': fillColorExpr(layer) as never,
+        'circle-stroke-color': lineColorExpr(layer) as never,
+        'circle-stroke-width': 1,
+      },
+    },
+    before,
+  );
+}
+
+/**
+ * Keeps the native MVT layers in sync with `enabled`. 'loading' until the map is idle after a
+ * change; 'error' when one of our tile requests failed (204 = empty tile, not an error).
+ */
+function useMvtLayers(enabled: MvtLayer[]): LoadState {
   const map = useMap();
   const [state, setState] = useState<LoadState>('idle');
-  const handle = useRef<DeckOverlayHandle | null>(null);
-  const latest = useRef(enabled);
-  const started = useRef(false);
 
   useEffect(() => {
-    latest.current = enabled;
-    if (handle.current) {
-      handle.current.update(enabled);
-      return;
+    if (!map) return;
+    for (const layer of MVT_LAYERS) {
+      const on = enabled.includes(layer);
+      if (on && !map.getSource(sourceId(layer))) addMvtLayer(map, layer);
+      for (const id of styleLayerIds(layer)) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
+      }
     }
     if (enabled.length === 0) {
-      setState((s) => (s === 'loading' ? 'idle' : s));
+      setState('idle');
       return;
     }
-    if (!map || started.current) return;
-    started.current = true;
     setState('loading');
-    let cancelled = false;
-    import('./deckOverlay')
-      .then(({ createOverlay }) => {
-        if (cancelled) return;
-        handle.current = createOverlay(map, latest.current);
-        setState('ready');
-      })
-      .catch(() => {
-        if (cancelled) return;
-        started.current = false; // allow a retry on the next toggle
-        setState('error');
-      });
+    let failed = false;
+    const onError = (e: ErrorEvent & { sourceId?: string }) => {
+      if (e.sourceId?.startsWith('mvt-')) failed = true;
+    };
+    const onIdle = () => setState(failed ? 'error' : 'ready');
+    map.on('error', onError);
+    map.once('idle', onIdle);
     return () => {
-      cancelled = true;
-      if (!handle.current) started.current = false;
+      map.off('error', onError);
+      map.off('idle', onIdle);
     };
   }, [map, enabled]);
-
-  useEffect(
-    () => () => {
-      handle.current?.destroy();
-      handle.current = null;
-    },
-    [],
-  );
 
   return state;
 }

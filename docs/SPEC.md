@@ -54,8 +54,8 @@
 |---|---|---|
 | Web | **Next.js 15 (App Router) + TypeScript** | Server Components + Route Handlers |
 | UI | Tailwind CSS + shadcn/ui | ฟอนต์ไทย: `IBM Plex Sans Thai` หรือ `Noto Sans Thai` |
-| Map | **Google Maps JavaScript API** ผ่าน `@vis.gl/react-google-maps` | libraries: `geometry`, `marker` · ต้องมี `Map ID` สำหรับ AdvancedMarker |
-| Map overlay | `@deck.gl/google-maps` (GoogleMapsOverlay) + `MVTLayer` | แสดงชั้นดินเค็ม/ดิน/น้ำบาดาลจาก vector tiles ของเราเอง |
+| Map | **MapLibre GL JS** (`maplibre-gl` v5) + ภาพดาวเทียมฟรี **Esri World Imagery** (สลับเป็น EOX Sentinel-2 cloudless ได้ด้วย `NEXT_PUBLIC_BASEMAP=esri\|eox`) + ชั้นชื่อสถานที่/ถนน Esri Reference | ไม่ใช้ API key · style สร้างในโค้ด (`components/map/basemap.ts`) · ดู DECISIONS D-030 |
+| Map overlay | MapLibre native `vector` source + fill/line layers (data-driven expressions) | แสดงชั้นดินเค็ม/ดิน/น้ำบาดาลจาก vector tiles ของเราเอง (`/api/tiles`) · ไม่ใช้ deck.gl |
 | Geometry ฝั่ง client | `@turf/turf` | ตรวจ self-intersection, centroid, เรียงจุด |
 | Charts | Recharts | กราฟผลผลิต/น้ำ/ECe รายปี |
 | DB | **Supabase (Postgres + PostGIS)** | แทน PostgreSQL+TimescaleDB เดิม |
@@ -142,9 +142,8 @@ thai-rice-twin/
 ## 4. Environment Variables (`.env.example`)
 
 ```bash
-# Google Maps
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=      # จำกัด HTTP referrer
-NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID=       # สำหรับ AdvancedMarker
+# Map (MapLibre + free imagery, no key — D-030)
+NEXT_PUBLIC_BASEMAP=esri
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=
@@ -190,12 +189,12 @@ GEE_SERVICE_ACCOUNT_JSON=
 
 ### 5.1 Flow ผู้ใช้ (หน้า `/map`)
 
-1. เปิดหน้า → แผนที่ `mapTypeId: 'hybrid'` (ดาวเทียม + ชื่อถนน) ซูมไปที่ตำแหน่ง GPS ถ้าผู้ใช้อนุญาต ไม่งั้นซูมทั้งประเทศ (center ≈ 13.0, 101.0, zoom 6) หรือจังหวัดนำร่องถ้าเปิดใช้จังหวัดเดียว
+1. เปิดหน้า → แผนที่ภาพถ่ายดาวเทียม (Esri World Imagery + ชั้นชื่อหมู่บ้าน/ถนน) ซูมไปที่ตำแหน่ง GPS ถ้าผู้ใช้อนุญาต ไม่งั้นซูมทั้งประเทศ (center ≈ 13.0, 101.0, zoom 5.5) หรือจังหวัดนำร่องถ้าเปิดใช้จังหวัดเดียว
 2. ปุ่มลอย **"📍 ตำแหน่งฉัน"** ซูมไป zoom 17
 3. แถบคำแนะนำด้านบน: *"แตะมุมแปลงนาของคุณให้ครบ 4 มุม"* พร้อมตัวนับ `1/4 … 4/4`
-4. แตะแผนที่ → วาง **AdvancedMarker** หมายเลข 1–4 (วงกลมสีเขียว ตัวเลขขาว ขนาดใหญ่พอสำหรับนิ้ว ≥ 44px)
-5. ตั้งแต่จุดที่ 2 วาด `Polyline` เชื่อมจุด, ครบ 4 จุด → เปลี่ยนเป็น `Polygon` ปิด (fill โปร่ง 25%)
-6. ทุกจุด **ลากได้** (`gmpDraggable`) → polygon, พื้นที่ และผลประเมินอัปเดตแบบ debounce 400ms
+4. แตะแผนที่ → วาง **MapLibre `Marker`** หมายเลข 1–4 (วงกลมสีเขียว ตัวเลขขาว ขนาดใหญ่พอสำหรับนิ้ว ≥ 44px)
+5. ตั้งแต่จุดที่ 2 วาดเส้นเชื่อมจุด (GeoJSON line layer), ครบ 4 จุด → เปลี่ยนเป็น polygon ปิด (GeoJSON fill + line, fill โปร่ง 25%, แดงเมื่อเส้นไขว้)
+6. ทุกจุด **ลากได้** (`Marker({ draggable: true })`) → polygon, พื้นที่ และผลประเมินอัปเดตแบบ debounce 400ms
 7. แสดง **AreaBadge** ลอยกลาง polygon: `12 ไร่ 2 งาน 35 ตร.ว.`
 8. ปุ่ม **"ย้อนกลับ"** (ลบจุดล่าสุด) และ **"เริ่มใหม่"**
 9. ครบ 4 จุดและผ่าน validation → เรียก `POST /api/analyze` อัตโนมัติ → **ResultPanel** เลื่อนขึ้นจากด้านล่าง (bottom sheet บนมือถือ / sidebar บน desktop)
@@ -227,7 +226,7 @@ GEE_SERVICE_ACCOUNT_JSON=
 - เขตชลประทาน (RID)
 - แหล่งน้ำ
 
-ทำงานด้วย `GoogleMapsOverlay` + `MVTLayer` ชี้ไปที่ `/api/tiles/{layer}/{z}/{x}/{y}` ซึ่งเรียก RPC `public.mvt_tile(layer, z, x, y)` (ใช้ `ST_AsMVT`) และตั้ง `Cache-Control: public, max-age=86400`
+ทำงานด้วย MapLibre `vector` source + fill/line layers (D-030) ชี้ไปที่ `/api/tiles/{layer}/{z}/{x}/{y}` ซึ่งเรียก RPC `public.mvt_tile(layer, z, x, y)` (ใช้ `ST_AsMVT`) และตั้ง `Cache-Control: public, max-age=86400`
 
 ### 5.4 Input เสริม (ไม่บังคับ — มีค่าเริ่มต้น)
 
@@ -263,9 +262,9 @@ GEE_SERVICE_ACCOUNT_JSON=
 - ปุ่มและ marker แตะได้ขนาด ≥ 44×44px · ระยะห่างระหว่างปุ่ม ≥ 8px
 - ใช้ `dvh` แทน `vh` (แถบที่อยู่ของเบราว์เซอร์มือถือ) และเผื่อ `env(safe-area-inset-*)` สำหรับรอยบากและแถบ home
 - input ฟอนต์ ≥ 16px กัน iOS ซูมอัตโนมัติ · เนื้อความขั้นต่ำ 16px · อัตราส่วนสีผ่าน WCAG AA (ใช้กลางแดดได้)
-- Google Maps: หน้า `/map` ตั้ง `gestureHandling: 'greedy'` (เลื่อนแผนที่ด้วยนิ้วเดียว) ส่วนแผนที่ฝังในหน้าเลื่อนได้ เช่น `/fields/[id]` ให้ใช้ `'cooperative'` เพื่อไม่ให้แย่งการ scroll หน้า
-- ซ่อนปุ่มควบคุม default ของ Google ที่ไม่จำเป็น (`streetViewControl`, `fullscreenControl` บนมือถือ) แล้วใช้ปุ่มของเราเองที่ใหญ่กว่า
-- โหลดแผนที่, deck.gl และ Recharts ด้วย `next/dynamic` (`ssr: false`) เพื่อให้ JS เริ่มต้นเบา
+- แผนที่ (MapLibre): หน้า `/map` เลื่อนแผนที่ด้วยนิ้วเดียว + pinch zoom ปิดการหมุน/เอียง ส่วนแผนที่ฝังในหน้าเลื่อนได้ เช่น `/fields/[id]` ให้ใช้โหมด cooperative gestures เพื่อไม่ให้แย่งการ scroll หน้า
+- ไม่ใช้ปุ่มควบคุม default ของแผนที่ (เหลือเฉพาะ attribution) ใช้ปุ่มของเราเองที่ใหญ่กว่า
+- โหลดแผนที่ (maplibre-gl + CSS) และ Recharts ด้วย `next/dynamic` (`ssr: false`) เพื่อให้ JS เริ่มต้นเบา
 - ทดสอบที่ viewport: **360×800** (Android ราคาประหยัด ซึ่งพบบ่อยในพื้นที่ชนบท), 390×844, 768×1024, 1024×768, 1366×768, 1920×1080 ด้วย Playwright (`projects` ต่ออุปกรณ์) + ภาพ screenshot เทียบ
 
 ---

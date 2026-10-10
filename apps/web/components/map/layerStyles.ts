@@ -1,9 +1,12 @@
 import { MVT_LAYERS, type MvtLayer, type ProvinceCoverage } from '@rice/contracts';
+import type { ExpressionSpecification } from 'maplibre-gl';
 
 /**
  * Pure styling + availability logic for the SPEC §5.3 LayerToggle.
- * No deck.gl imports here — deck.gl is loaded lazily by `deckOverlay.ts`.
- * Feature property names follow `public.mvt_tile` (supabase/migrations/20261010000500_rpc.sql).
+ * Colour ramps are defined once as RGBA constants; the JS helpers (legend, tests) and the
+ * MapLibre data-driven expressions (`fillColorExpr` / `lineColorExpr`) are both derived from them.
+ * Feature property names follow `public.mvt_tile` (supabase/migrations/20261010000500_rpc.sql);
+ * the MVT layer name inside each tile (`source-layer`) equals the contract layer name.
  */
 
 export type RGBA = [number, number, number, number];
@@ -43,7 +46,7 @@ export function availabilityFromCoverage(
   return { soil: coverage?.has_ldd_soil === true, saline: coverage?.has_ldd_saline === true };
 }
 
-/** Toggle membership while keeping contract order (stable deck.gl layer order). */
+/** Toggle membership while keeping contract order (stable map layer order). */
 export function toggleLayer(enabled: readonly MvtLayer[], layer: MvtLayer): MvtLayer[] {
   const set = new Set(enabled);
   if (set.has(layer)) set.delete(layer);
@@ -170,7 +173,98 @@ export function cssColor(c: RGBA): string {
   return `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a.toFixed(2)})`;
 }
 
-/** Tile URL template for deck.gl MVTLayer (route: app/api/tiles/[layer]/[z]/[x]/[y]). */
-export function tileUrl(layer: MvtLayer): string {
-  return `/api/tiles/${layer}/{z}/{x}/{y}`;
+/**
+ * Tile URL template for a MapLibre vector source (route: app/api/tiles/[layer]/[z]/[x]/[y]).
+ * MapLibre fetches tiles from a worker, so pass `window.location.origin` to get an absolute URL.
+ */
+export function tileUrl(layer: MvtLayer, origin = ''): string {
+  return `${origin}/api/tiles/${layer}/{z}/{x}/{y}`;
+}
+
+// ------------------------------------------------------------------ MapLibre expressions
+
+type Paint = (c: RGBA) => RGBA;
+const asIs: Paint = (c) => c;
+
+/** RGBA (alpha 0–255) → CSS colour string accepted by MapLibre paint properties. */
+export function rgbaCss(c: RGBA): string {
+  const a = Math.round((c[3] / 255) * 1000) / 1000;
+  return `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
+}
+
+/** Soil groups expressible without a hash function: LDD groups 1–62 (others → grey). */
+const SOIL_GROUP_KEYS = Array.from({ length: 62 }, (_, i) => String(i + 1));
+
+function colorExpr(layer: MvtLayer, paint: Paint): ExpressionSpecification | string {
+  const c = (x: RGBA) => rgbaCss(paint(x));
+  switch (layer) {
+    case 'saline_soil':
+      return [
+        'match',
+        ['to-string', ['get', 'salinity_level']],
+        ...(Object.keys(SALINE_COLORS) as (keyof typeof SALINE_COLORS)[]).flatMap((k) => [
+          k,
+          c([...SALINE_COLORS[k]]),
+        ]),
+        c(TRANSPARENT),
+      ] as ExpressionSpecification;
+    case 'groundwater': {
+      // to-number(null) is 0 → test null first; unparsable strings fall back to -1 (unknown)
+      const ec: ExpressionSpecification = ['to-number', ['get', 'ec_dsm'], -1];
+      return [
+        'case',
+        ['==', ['get', 'ec_dsm'], null],
+        c([...GW_COLORS.unknown]),
+        ['<', ec, 0],
+        c([...GW_COLORS.unknown]),
+        ['>', ec, GW_BRACKISH_MAX_DSM],
+        c([...GW_COLORS.saline]),
+        ['>', ec, GW_FRESH_MAX_DSM],
+        c([...GW_COLORS.brackish]),
+        c([...GW_COLORS.fresh]),
+      ];
+    }
+    case 'geology': {
+      // isMahaSarakham(): flag true/'t'/'true', or unit_code /^\s*ktms/i
+      const code: ExpressionSpecification = ['downcase', ['to-string', ['get', 'unit_code']]];
+      const at: ExpressionSpecification = ['index-of', 'ktms', code];
+      return [
+        'case',
+        ['in', ['to-string', ['get', 'is_maha_sarakham']], ['literal', ['true', 't']]],
+        c([...GEOLOGY_COLORS.ktms]),
+        [
+          'all',
+          ['>=', at, 0],
+          ['in', ['slice', code, 0, at], ['literal', ['', ' ', '  ', '\t']]],
+        ],
+        c([...GEOLOGY_COLORS.ktms]),
+        c([...GEOLOGY_COLORS.other]),
+      ];
+    }
+    case 'soil_units':
+      return [
+        'match',
+        ['to-string', ['get', 'soil_group']],
+        ...SOIL_GROUP_KEYS.flatMap((k) => [k, c(soilGroupColor(k))]),
+        c(soilGroupColor(null)),
+      ] as ExpressionSpecification;
+    case 'irrigation':
+      return c(IRRIGATION_COLOR);
+    case 'water_bodies':
+      return c(WATER_COLOR);
+  }
+}
+
+/** `fill-color` for a contract layer — same ramp as the JS helpers above. */
+export function fillColorExpr(layer: MvtLayer): ExpressionSpecification | string {
+  return colorExpr(layer, asIs);
+}
+
+/** `line-color` / `circle-stroke-color`: opaque outline of the fill (transparent stays transparent). */
+export function lineColorExpr(layer: MvtLayer): ExpressionSpecification | string {
+  return colorExpr(layer, (x) => outline(x));
+}
+
+export function lineWidth(layer: MvtLayer): number {
+  return layer === 'water_bodies' ? 2 : 1;
 }
