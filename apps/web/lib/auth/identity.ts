@@ -24,3 +24,17 @@ export function appUserIdFromGoogleSub(sub: string): string {
   if (!sub) throw new Error('appUserIdFromGoogleSub: empty sub');
   return uuidV5(`google:${sub}`, APP_USER_NAMESPACE);
 }
+
+/**
+ * Dev-only login bypass (AUTH_DEV_BYPASS=1, never in production). Separate name prefix so the
+ * synthetic user can never collide with a real Google account id.
+ */
+export const DEV_BYPASS_USER = {
+  id: uuidV5('dev:local-tester', APP_USER_NAMESPACE),
+  email: 'dev@localhost',
+  name: 'ผู้ทดสอบ (dev)',
+} as const;
+
+export function isDevBypassEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return env.NODE_ENV !== 'production' && env.AUTH_DEV_BYPASS === '1';
+}

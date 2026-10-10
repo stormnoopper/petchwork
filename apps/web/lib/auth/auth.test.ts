@@ -69,3 +69,17 @@ describe('safeNext', () => {
     expect(safeNext(undefined, '/')).toBe('/');
   });
 });
+
+import { DEV_BYPASS_USER, isDevBypassEnabled, appUserIdFromGoogleSub as googleId } from './identity';
+describe('dev bypass', () => {
+  it('is never enabled in production', () => {
+    expect(isDevBypassEnabled({ NODE_ENV: 'production', AUTH_DEV_BYPASS: '1' })).toBe(false);
+  });
+  it('requires explicit flag', () => {
+    expect(isDevBypassEnabled({ NODE_ENV: 'development' })).toBe(false);
+    expect(isDevBypassEnabled({ NODE_ENV: 'development', AUTH_DEV_BYPASS: '1' })).toBe(true);
+  });
+  it('dev user id cannot collide with a google id', () => {
+    expect(DEV_BYPASS_USER.id).not.toBe(googleId('local-tester'));
+  });
+});

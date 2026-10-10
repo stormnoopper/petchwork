@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { signIn } from '@/auth';
+import { isDevBypassEnabled } from '@/lib/auth/identity';
 import { safeNext } from '@/lib/auth/safe-next';
 import t from '@/messages/th.auth.json';
 import { GoogleButton } from './GoogleButton';
@@ -26,10 +27,17 @@ export default async function LoginPage({ searchParams }: Props) {
   const next = safeNext(first(sp.next) ?? first(sp.callbackUrl));
   const error = errorText(first(sp.error));
   const configured = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
+  const devBypass = isDevBypassEnabled();
 
   async function signInWithGoogle() {
     'use server';
     await signIn('google', { redirectTo: safeNext(next) });
+  }
+
+  async function signInDevBypass() {
+    'use server';
+    if (!isDevBypassEnabled()) return;
+    await signIn('dev-bypass', { redirectTo: safeNext(next) });
   }
 
   return (
@@ -50,6 +58,17 @@ export default async function LoginPage({ searchParams }: Props) {
             <p className="text-muted-foreground">{t.login.devNoticeBody}</p>
           </div>
         )}
+
+        {devBypass ? (
+          <form action={signInDevBypass}>
+            <button
+              type="submit"
+              className="flex h-12 w-full items-center justify-center rounded-full border-2 border-dashed border-amber-600 bg-amber-50 px-4 text-base font-medium text-amber-900 hover:bg-amber-100"
+            >
+              {t.login.devBypass}
+            </button>
+          </form>
+        ) : null}
 
         {error ? (
           <p role="alert" className="text-sm text-destructive">
