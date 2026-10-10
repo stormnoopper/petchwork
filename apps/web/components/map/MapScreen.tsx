@@ -1,77 +1,80 @@
 'use client';
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ResultPanel } from '@/components/results/ResultPanel';
+import { RESTORE_PARAM, takeDraft, type FieldDraft } from '@/lib/display/draft';
+import { cn } from '@/lib/utils';
+import { availabilityFromCoverage } from './layerStyles';
 import type { FieldDrawResult } from './types';
-import { useAnalyze, type AnalyzeState } from './useAnalyze';
+import { useAnalyze } from './useAnalyze';
 import { mapMessages as m } from './messages';
 
-// Google Maps must never render on the server (SPEC §5.5) — dynamic ssr:false lives in a client component.
-const FieldDrawer = dynamic(() => import('./FieldDrawer'), {
-  ssr: false,
-  loading: () => (
+function MapLoading() {
+  return (
     <div className="flex h-full w-full items-center justify-center gap-2 bg-muted text-base text-muted-foreground">
       <Loader2 className="size-5 animate-spin" aria-hidden />
       {m.loadingMap}
     </div>
-  ),
-});
+  );
+}
 
-/** /map layout: full-screen map on mobile; 400px left slot + map on desktop (SPEC §5.5). */
+// Google Maps must never render on the server (SPEC §5.5) — dynamic ssr:false lives in a client component.
+const FieldDrawer = dynamic(() => import('./FieldDrawer'), { ssr: false, loading: MapLoading });
+
+/**
+ * /map layout (SPEC §5.5): ResultPanel is a single responsive node — bottom sheet (portrait < lg),
+ * right panel (landscape < lg) or 400 px left aside (≥ lg). The map keeps the rest.
+ */
 export function MapScreen() {
   const [field, setField] = useState<FieldDrawResult | null>(null);
   const analysis = useAnalyze(field?.valid ? field.polygon : null);
 
+  // Post-login draft restore (/map?restore=1). FieldDrawer reads initialVertices once on mount,
+  // so it is mounted only after the draft has been checked.
+  const [ready, setReady] = useState(false);
+  const [draft, setDraft] = useState<FieldDraft | null>(null);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get(RESTORE_PARAM) === '1') {
+      setDraft(takeDraft());
+      url.searchParams.delete(RESTORE_PARAM);
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    }
+    setReady(true);
+  }, []);
+
+  const coverage =
+    analysis.status === 'success' && analysis.data.ok ? analysis.data.profile.coverage : null;
+  const sheetVisible = analysis.status !== 'idle';
+
   return (
     <div className="flex h-dvh w-full overflow-hidden">
-      <aside
-        aria-label={m.pageTitle}
-        className="hidden overflow-y-auto border-r bg-background lg:flex lg:w-[400px] lg:shrink-0 lg:flex-col lg:gap-4 lg:p-4"
-      >
-        {/* TODO(frontend-ui): replace with <ResultPanel field={field} analysis={analysis} /> (task 1.x).
-            Mobile: bottom sheet (Drawer) — see SPEC §5.5. `field` + `analysis` are the inputs. */}
-        <p className="text-base text-muted-foreground">{m.panelPlaceholder}</p>
-        <AnalyzeStatus analysis={analysis} />
-      </aside>
-      <main className="relative min-w-0 flex-1">
-        <FieldDrawer
-          onPolygonChange={setField}
-          status={
-            <div className="lg:hidden">
-              <AnalyzeStatus analysis={analysis} />
-            </div>
-          }
+      {ready ? (
+        <ResultPanel
+          field={field}
+          analysis={analysis}
+          initialPractices={draft?.practices}
+          restored={draft != null}
         />
+      ) : null}
+      <main
+        className={cn(
+          'relative min-w-0 flex-1',
+          // keep the map (and its bottom controls) above the 25 % sheet snap
+          sheetVisible && 'max-lg:portrait:pb-[25dvh]',
+        )}
+      >
+        {ready ? (
+          <FieldDrawer
+            onPolygonChange={setField}
+            initialVertices={draft?.vertices}
+            layerAvailability={availabilityFromCoverage(coverage)}
+          />
+        ) : (
+          <MapLoading />
+        )}
       </main>
-    </div>
-  );
-}
-
-function AnalyzeStatus({ analysis }: { analysis: AnalyzeState & { retry: () => void } }) {
-  if (analysis.status === 'idle') return null;
-  if (analysis.status === 'loading') {
-    return (
-      <div role="status" className="flex items-center gap-2 rounded-lg bg-white/95 px-3 py-2 text-base text-foreground shadow-lg">
-        <Loader2 className="size-5 animate-spin" aria-hidden />
-        {m.analyze.loading}
-      </div>
-    );
-  }
-  if (analysis.status === 'error') {
-    return (
-      <div role="alert" className="flex items-center justify-between gap-3 rounded-lg bg-white/95 px-3 py-2 text-base text-foreground shadow-lg">
-        <span className="min-w-0">{m.analyze[analysis.error]}</span>
-        <Button type="button" variant="outline" className="h-11 shrink-0 px-4 text-base" onClick={analysis.retry}>
-          {m.analyze.retry}
-        </Button>
-      </div>
-    );
-  }
-  const d = analysis.data;
-  return (
-    <div role="status" className="rounded-lg bg-white/95 px-3 py-2 text-base text-foreground shadow-lg">
-      {d.ok ? m.analyze.done : d.message_th}
     </div>
   );
 }

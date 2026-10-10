@@ -61,3 +61,6 @@
 
 ## D-020 · 2026-10-10 · Orchestrator
 **Contract v0.4** — id ใช้ `z.guid()` แทน `z.uuid()` (zod v4 strict RFC ปฏิเสธ `DEMO_FIELD_ID`) · เพิ่ม `ApiError`, `FieldDetailResponse`, `UpdateFieldRequest`, `EnqueueRunRequest` · supabase auth `site_url` = `http://localhost:3000` + redirect allowlist
+
+## D-021 · 2026-10-10 · frontend-ui
+**ResultPanel / รายงาน** — bottom sheet เขียนเอง (`ResponsivePanel`, DOM เดียว non-modal) แทน Base UI Drawer เพื่อให้หมุนจอแล้ว state ไม่หาย · draft ก่อน login เก็บใน session+localStorage TTL 1 ชม. ลบทันทีเมื่อกู้ (magic link เปิดแท็บใหม่) · ResultPanel คำนวณฝั่ง client เสมอด้วย practices เดียวกับ server · P10–P90 ของน้ำและ GHG มาจาก ensemble รายปี · รายงานแปลง Phase 1 คำนวณฝั่ง server จาก profile + weather (ยังไม่ใช้ twin runs) · กราฟ 2 ชุดแยก ไม่ใช้ dual axis

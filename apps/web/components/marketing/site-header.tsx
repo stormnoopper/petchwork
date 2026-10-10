@@ -3,14 +3,24 @@ import { SproutIcon } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import th from '@/messages/th.json';
+import { AuthNavLink } from './auth-nav-link';
 import { MobileMenu } from './mobile-menu';
 import { NAV_LINKS } from './nav-links';
 
-export function SiteHeader() {
+export function SiteHeader({ className }: { className?: string } = {}) {
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-backdrop-filter:bg-background/80">
+    <header
+      className={cn(
+        'sticky top-0 z-40 border-b bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-backdrop-filter:bg-background/80',
+        className,
+      )}
+    >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" className="flex min-h-11 items-center gap-2 rounded-lg" aria-label={th.marketing.brand}>
+        <Link
+          href="/"
+          className="flex min-h-11 items-center gap-2 rounded-lg"
+          aria-label={th.marketing.brand}
+        >
           <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <SproutIcon className="size-5" aria-hidden />
           </span>
@@ -30,12 +40,12 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Link
-            href="/login"
-            className={cn(buttonVariants({ variant: 'outline' }), 'hidden h-11 px-4 text-base md:inline-flex')}
-          >
-            {th.marketing.nav.login}
-          </Link>
+          <AuthNavLink
+            className={cn(
+              buttonVariants({ variant: 'outline' }),
+              'hidden h-11 px-4 text-base md:inline-flex',
+            )}
+          />
           <MobileMenu
             links={NAV_LINKS}
             labels={{

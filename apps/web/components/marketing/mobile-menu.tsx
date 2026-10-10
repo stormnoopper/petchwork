@@ -6,6 +6,7 @@ import { MenuIcon } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { AuthNavLink } from './auth-nav-link';
 
 type Props = {
   links: ReadonlyArray<{ href: string; label: string }>;
@@ -39,13 +40,7 @@ export function MobileMenu({ links, labels }: Props) {
               {l.label}
             </Link>
           ))}
-          <Link
-            href="/login"
-            onClick={close}
-            className={cn(buttonVariants(), 'mt-2 h-11 text-base')}
-          >
-            {labels.login}
-          </Link>
+          <AuthNavLink onClick={close} className={cn(buttonVariants(), 'mt-2 h-11 text-base')} />
         </nav>
       </SheetContent>
     </Sheet>
