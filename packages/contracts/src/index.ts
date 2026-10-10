@@ -95,7 +95,7 @@ export const DEFAULT_PRACTICES: Practices = {
   plantDate: null,
   establishment: 'broadcast',
   waterSource: 'rainfed',
-  waterRegime: 'continuous',
+  waterRegime: 'rainfed',
   nKgPerRai: 10,
   organicTPerRai: 0,
   strawBurn: false,
@@ -178,6 +178,8 @@ export const FieldProfile = z.object({
       plant_doy_dry: z.number().int().nullable(),
       si_dry_season: z.number().nullable(),
       coast_dist_km: z.number().nullable(),
+      /** dry-season river/canal EC near the field (ThaiWater), coastal_intrusion input — optional until ETL provides it */
+      river_ec_dry_dsm: z.number().nullable().optional(),
       weather_grid_id: z.number().int().nullable(),
     })
     .nullable(),
