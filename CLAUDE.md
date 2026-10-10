@@ -17,7 +17,7 @@ pnpm workspaces · Next.js 15 App Router + TS strict (`apps/web`) · Tailwind + 
 - `etl/` — Python ETL
 
 ## กติกาสำคัญ
-- ขอบเขต: ทั้งประเทศ แต่เปิดใช้รายจังหวัดผ่าน `ref.province_coverage.enabled` (Phase 1 = มหาสารคาม `MSK` / code `44`)
+- ขอบเขต: ทั้งประเทศ แต่เปิดใช้รายจังหวัดผ่าน `ref.province_coverage.enabled` (ตอนนี้เปิดทั้ง 77 จังหวัด · มหาสารคาม `44` = นำร่อง มีข้อมูลละเอียดสุด · จังหวัดอื่นใช้ NASA POWER + nearest-weather fallback, confidence ต่ำ — D-029)
 - **LDD placeholder:** `ref.soil_units`, `ref.saline_soil_zones` อาจว่าง — ทุกโค้ดต้องทำงานได้และคืน `confidence: 'low'`
 - หน่วยในโค้ดเป็น SI · แปลงเป็นไร่-งาน-ตร.ว. เฉพาะชั้นแสดงผล
 - UI ภาษาไทย อยู่ใน `apps/web/messages/th.json` · mobile-first

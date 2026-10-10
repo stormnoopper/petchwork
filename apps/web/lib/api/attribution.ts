@@ -14,7 +14,7 @@ export const SOURCE_ATTRIBUTION: Record<string, string> = {
   hdx_codab: 'OCHA HDX',
   era5_land: 'Copernicus Climate Change Service',
   open_meteo: 'Open-Meteo.com',
-  nasa_power: 'NASA POWER',
+  nasa_power: 'NASA POWER Project',
   soilgrids: 'ISRIC SoilGrids',
   chirps: 'UCSB CHC',
   jrc_gsw: 'EC JRC / Google',
@@ -23,8 +23,8 @@ export const SOURCE_ATTRIBUTION: Record<string, string> = {
   nex_gddp_cmip6: 'NASA NEX',
 };
 
-/** Sources always behind an analyze result (weather + grid layers) even without a snapshot row. */
-const ALWAYS = ['thaiwater', 'era5_land', 'open_meteo', 'soilgrids'];
+/** ThaiWater attribution is mandatory on every result (SPEC §12); other sources come from data_versions. */
+const ALWAYS = ['thaiwater'];
 
 /** Unique attribution lines for the sources used; ThaiWater is always included (SPEC §12). */
 export function buildAttribution(dataVersions: Record<string, string>): string[] {

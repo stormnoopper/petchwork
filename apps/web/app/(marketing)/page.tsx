@@ -19,7 +19,12 @@ import {
   WheatIcon,
   MountainIcon,
 } from 'lucide-react';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -66,7 +71,10 @@ const AGENCY_ICONS: LucideIcon[] = [BuildingIcon, HandshakeIcon, LeafIcon, PlugI
 const PILOT_PROVINCE = 'มหาสารคาม';
 
 export default async function LandingPage() {
-  const [lastUpdate, enabledProvinces] = await Promise.all([getLatestDataUpdate(), getEnabledProvinces()]);
+  const [lastUpdate, enabledProvinces] = await Promise.all([
+    getLatestDataUpdate(),
+    getEnabledProvinces(),
+  ]);
   const provinces = enabledProvinces ?? [PILOT_PROVINCE];
 
   return (
@@ -90,7 +98,10 @@ export default async function LandingPage() {
               </Link>
               <Link
                 href="/fields/demo"
-                className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'h-12 px-6 text-lg')}
+                className={cn(
+                  buttonVariants({ variant: 'outline', size: 'lg' }),
+                  'h-12 px-6 text-lg',
+                )}
               >
                 {t.ctaDemo}
               </Link>
@@ -135,7 +146,12 @@ export default async function LandingPage() {
       </Section>
 
       {/* 4 result cards: 1 → 2 → 4 columns */}
-      <Section id="results" title={t.results.title} subtitle={t.results.subtitle} className="bg-muted/40">
+      <Section
+        id="results"
+        title={t.results.title}
+        subtitle={t.results.subtitle}
+        className="bg-muted/40"
+      >
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {t.results.items.map((r) => {
             const Icon = RESULT_ICONS[r.key] ?? DropletsIcon;
@@ -184,22 +200,36 @@ export default async function LandingPage() {
         </div>
         <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-5">
           <h3 className="text-lg font-semibold">{t.salinity.coverageTitle}</h3>
-          <ul className="mt-3 flex flex-wrap gap-2">
-            {provinces.map((p) => (
-              <li key={p}>
-                <Badge className="h-auto px-3 py-1 text-base">
-                  {p}
-                  {p === PILOT_PROVINCE ? ` · ${t.salinity.pilotTag}` : ''}
-                </Badge>
-              </li>
-            ))}
-          </ul>
+          {provinces.length >= 20 ? (
+            <div className="mt-3 space-y-2">
+              <Badge className="h-auto px-3 py-1 text-base">
+                {t.salinity.allProvinces.replace('{n}', String(provinces.length))}
+              </Badge>
+              <p className="text-base text-muted-foreground">{t.salinity.allProvincesNote}</p>
+            </div>
+          ) : (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {provinces.map((p) => (
+                <li key={p}>
+                  <Badge className="h-auto px-3 py-1 text-base">
+                    {p}
+                    {p === PILOT_PROVINCE ? ` · ${t.salinity.pilotTag}` : ''}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          )}
           <p className="mt-3 text-base text-muted-foreground">{t.salinity.coverageNote}</p>
         </div>
       </Section>
 
       {/* Sample report preview */}
-      <Section id="report" title={t.report.title} subtitle={t.report.subtitle} className="bg-muted/40">
+      <Section
+        id="report"
+        title={t.report.title}
+        subtitle={t.report.subtitle}
+        className="bg-muted/40"
+      >
         <div className="flex flex-col items-center gap-6">
           <ReportPreview />
           <Link
@@ -237,7 +267,12 @@ export default async function LandingPage() {
       </Section>
 
       {/* Data sources + last update */}
-      <Section id="data-sources" title={t.data.title} subtitle={t.data.subtitle} className="bg-muted/40">
+      <Section
+        id="data-sources"
+        title={t.data.title}
+        subtitle={t.data.subtitle}
+        className="bg-muted/40"
+      >
         <p className="mb-6 inline-flex flex-wrap items-center gap-2 rounded-lg bg-background px-4 py-3 text-base ring-1 ring-foreground/10">
           <DatabaseIcon className="size-5 text-primary" aria-hidden />
           <span className="font-medium">{t.data.lastUpdatedLabel}</span>
