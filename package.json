@@ -2,7 +2,9 @@
   "name": "petchwork",
   "private": true,
   "packageManager": "pnpm@10.33.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "pnpm --filter @rice/web dev",
     "build": "pnpm -r build",
@@ -11,5 +13,7 @@
     "typecheck": "pnpm -r typecheck",
     "format": "prettier --write ."
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "prettier": "^3.9.10"
+  }
 }
