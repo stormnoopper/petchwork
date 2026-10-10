@@ -59,7 +59,7 @@
 | Geometry ฝั่ง client | `@turf/turf` | ตรวจ self-intersection, centroid, เรียงจุด |
 | Charts | Recharts | กราฟผลผลิต/น้ำ/ECe รายปี |
 | DB | **Supabase (Postgres + PostGIS)** | แทน PostgreSQL+TimescaleDB เดิม |
-| Auth | Supabase Auth | เริ่มด้วย Phone OTP หรือ magic link · ระยะ 3 เพิ่ม LINE Login |
+| Auth | **Auth.js v5 (NextAuth) — Google Login อย่างเดียว** | server mint Supabase JWT (HS256) ต่อ request เพื่อให้ RLS `auth.uid()` ทำงาน · ผู้ใช้อยู่ใน `app.users` (ดู DECISIONS D-026) · ระยะ 3 พิจารณา LINE Login |
 | Job queue | **Supabase Queues (pgmq)** + `pg_cron` | งานหนัก (twin 10 ปี) รันแบบ background |
 | Realtime | Supabase Realtime | แจ้งหน้าเว็บเมื่อ job เสร็จ |
 | Model (Phase 1) | TypeScript ใน `packages/model` | สูตร FAO-56 / IPCC / Maas–Hoffman เรียกได้ทั้ง server และ client |
@@ -200,7 +200,7 @@ GEE_SERVICE_ACCOUNT_JSON=
 8. ปุ่ม **"ย้อนกลับ"** (ลบจุดล่าสุด) และ **"เริ่มใหม่"**
 9. ครบ 4 จุดและผ่าน validation → เรียก `POST /api/analyze` อัตโนมัติ → **ResultPanel** เลื่อนขึ้นจากด้านล่าง (bottom sheet บนมือถือ / sidebar บน desktop)
 10. ResultPanel มีฟอร์มเสริมแบบพับได้ (พันธุ์, นาปี/นาปรัง, วิธีปลูก, การจัดการน้ำ, ปุ๋ย, การเผาฟาง ฯลฯ — หัวข้อ 5.4) เปลี่ยนค่าแล้วคำนวณใหม่ทันทีฝั่ง client (ไม่ต้องยิง DB ซ้ำ เพราะ profile ได้มาแล้ว)
-11. ปุ่ม **"บันทึกแปลงนี้"** → ถ้ายังไม่ login ให้ login (Supabase Auth) → ตั้งชื่อแปลง → insert `app.fields` → ไป `/fields/[id]`
+11. ปุ่ม **"บันทึกแปลงนี้"** → ถ้ายังไม่ login ให้ login ด้วย Google (Auth.js) → ตั้งชื่อแปลง → insert `app.fields` → ไป `/fields/[id]`
 
 ### 5.2 Geometry logic (`lib/geo/*`)
 

@@ -12,7 +12,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const id = FieldId.safeParse((await params).id);
   if (!id.success) return apiError('NOT_FOUND');
   const supabase = await createClient();
-  const user = await getUser(supabase);
+  const user = await getUser();
   if (!user) return apiError('UNAUTHORIZED');
 
   const body = EnqueueRunRequest.safeParse(await readJson(req));

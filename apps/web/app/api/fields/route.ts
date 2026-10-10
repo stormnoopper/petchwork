@@ -4,13 +4,14 @@ import { getUser } from '@/lib/api/auth';
 import { apiError, pgErrorCode, readJson } from '@/lib/api/errors';
 import { FIELD_COLUMNS, polygonToEwkt, practicesToRow, toField } from '@/lib/api/fields';
 import { createClient } from '@/lib/supabase/server';
+import { ensureAppUser } from '@/lib/supabase/user';
 
 export const dynamic = 'force-dynamic';
 
 /** GET /api/fields — the signed-in user's fields (RLS). */
 export async function GET() {
   const supabase = await createClient();
-  const user = await getUser(supabase);
+  const user = await getUser();
   if (!user) return apiError('UNAUTHORIZED');
 
   const { data, error } = await supabase
@@ -29,19 +30,30 @@ export async function GET() {
 /** POST /api/fields — CreateFieldRequest → Field (trigger fills admin codes + sim.field_profile). */
 export async function POST(req: Request) {
   const supabase = await createClient();
-  const user = await getUser(supabase);
+  const user = await getUser();
   if (!user) return apiError('UNAUTHORIZED');
 
   const body = CreateFieldRequest.safeParse(await readJson(req));
   if (!body.success) return apiError('BAD_REQUEST', body.error.issues);
   const { name, vertices, polygon, practices } = body.data;
 
-  const { data, error } = await supabase
-    .schema('app')
-    .from('fields')
-    .insert({ user_id: user.id, name, vertices, geom: polygonToEwkt(polygon) })
-    .select(FIELD_COLUMNS)
-    .single();
+  const insert = () =>
+    supabase
+      .schema('app')
+      .from('fields')
+      .insert({ user_id: user.id, name, vertices, geom: polygonToEwkt(polygon) })
+      .select(FIELD_COLUMNS)
+      .single();
+  let { data, error } = await insert();
+  if (error?.code === '23503') {
+    // app.users row missing (e.g. DB reset while the session cookie lived on) → recreate once, retry
+    try {
+      await ensureAppUser(supabase, { ...user, providerAccountId: null });
+      ({ data, error } = await insert());
+    } catch (e) {
+      console.error('[api/fields] ensure_app_user retry failed', e);
+    }
+  }
   if (error || !data) {
     console.error('[api/fields] insert failed', error);
     return apiError(pgErrorCode(error));

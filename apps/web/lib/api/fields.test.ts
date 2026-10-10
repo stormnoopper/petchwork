@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EnqueueRunRequest, polygonToEwkt, practicesToRow, toField, UpdateFieldRequest } from './fields';
-import { safeNext } from './auth';
+import { safeNext } from '@/lib/auth/safe-next';
 import { TileParams } from './tiles';
 
 const polygon = {

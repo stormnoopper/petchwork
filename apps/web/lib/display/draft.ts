@@ -1,7 +1,7 @@
 /**
  * Unsaved-field draft kept while the user logs in (task 1.8).
- * Stored in sessionStorage (same tab) and mirrored to localStorage with a short TTL because a
- * magic link usually opens a new tab, which does not share sessionStorage.
+ * Stored in sessionStorage (same tab — the Google OAuth redirect returns to it) and mirrored to
+ * localStorage with a short TTL in case the browser opens the sign-in in another tab.
  */
 import { z } from 'zod';
 import { LatLng, Practices, DEFAULT_PRACTICES } from '@rice/contracts';

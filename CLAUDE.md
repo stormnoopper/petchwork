@@ -7,7 +7,7 @@
 - การตัดสินใจนอกสเปก: `docs/DECISIONS.md` (เพิ่มรายการใหม่ทุกครั้งที่เลือกทางเอง)
 
 ## Stack
-pnpm workspaces · Next.js 15 App Router + TS strict (`apps/web`) · Tailwind + shadcn/ui · Supabase (Postgres + PostGIS) · `@vis.gl/react-google-maps` · vitest · Playwright
+pnpm workspaces · Next.js 15 App Router + TS strict (`apps/web`) · Tailwind + shadcn/ui · Supabase (Postgres + PostGIS) · Auth.js v5 (Google only, ไม่ใช้ Supabase Auth) · `@vis.gl/react-google-maps` · vitest · Playwright
 
 ## โครงสร้าง
 - `packages/contracts` — zod schema + types ที่ทุกส่วนใช้ร่วม (**Orchestrator เป็นเจ้าของ** ห้ามประกาศ type ซ้ำที่อื่น)
@@ -21,6 +21,7 @@ pnpm workspaces · Next.js 15 App Router + TS strict (`apps/web`) · Tailwind + 
 - **LDD placeholder:** `ref.soil_units`, `ref.saline_soil_zones` อาจว่าง — ทุกโค้ดต้องทำงานได้และคืน `confidence: 'low'`
 - หน่วยในโค้ดเป็น SI · แปลงเป็นไร่-งาน-ตร.ว. เฉพาะชั้นแสดงผล
 - UI ภาษาไทย อยู่ใน `apps/web/messages/th.json` · mobile-first
+- Auth: ใช้ `auth()` จาก `apps/web/auth.ts` · DB ฝั่ง server ผ่าน `lib/supabase/server.ts` (mint JWT ให้ RLS) · Supabase token ห้ามส่งถึง browser · namespace uuid v5 ของ user id ห้ามเปลี่ยน
 - ห้าม hardcode key · อัปเดต `.env.example` ทุกครั้งที่เพิ่มตัวแปร · ห้ามใช้ `SUPABASE_SERVICE_ROLE_KEY` ฝั่ง client
 - ก่อนส่งงาน: `pnpm lint && pnpm test`
 - Subagent: แก้เฉพาะ path ที่ตัวเองเป็นเจ้าของ (SPEC §15.2) และจบงานด้วย Handoff (SPEC §15.5)

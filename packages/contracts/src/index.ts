@@ -391,6 +391,8 @@ export const RPC = {
   enabledProvinces: 'enabled_provinces',
   /** () -> { source_code, version, created_at }[] latest per source */
   dataSnapshotsLatest: 'data_snapshots_latest',
+  /** (p_email, p_name, p_image, p_provider_account_id) -> app.users row; uses auth.uid() from server-minted JWT */
+  ensureAppUser: 'ensure_app_user',
 } as const;
 
 export const MVT_LAYERS = [

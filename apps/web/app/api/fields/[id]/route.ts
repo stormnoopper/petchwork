@@ -50,7 +50,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const id = FieldId.safeParse((await params).id);
   if (!id.success) return apiError('NOT_FOUND');
   const supabase = await createClient();
-  const user = await getUser(supabase);
+  const user = await getUser();
   if (!user) return apiError('UNAUTHORIZED');
 
   const body = UpdateFieldRequest.safeParse(await readJson(req));
@@ -80,7 +80,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
   const id = FieldId.safeParse((await params).id);
   if (!id.success) return apiError('NOT_FOUND');
   const supabase = await createClient();
-  const user = await getUser(supabase);
+  const user = await getUser();
   if (!user) return apiError('UNAUTHORIZED');
 
   const { data, error } = await supabase

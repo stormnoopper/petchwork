@@ -7,6 +7,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { fmt, formatThaiDate } from '@/lib/display/fmt';
 import { formatRaiNganWa, raiToM2 } from '@/lib/units';
 import { cn } from '@/lib/utils';
+import { getUser } from '@/lib/api/auth';
 import { createClient } from '@/lib/supabase/server';
 import th from '@/messages/th.json';
 
@@ -18,11 +19,9 @@ const FIELD_COLUMNS =
   'id,name,vertices,area_rai,province_code,district_code,subdistrict_code,is_demo,created_at';
 
 export default async function MyFieldsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) redirect(`/login?next=${encodeURIComponent('/fields')}`);
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .schema('app')

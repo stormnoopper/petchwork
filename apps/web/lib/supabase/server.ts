@@ -1,24 +1,15 @@
 import 'server-only';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { cache } from 'react';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSessionUser } from '@/lib/auth/session';
+import { createAnonClient } from './anon';
+import { createUserClient } from './user';
 
-/** Per-request client bound to the user's auth cookies (RLS applies). */
-export async function createClient() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (toSet) => {
-          try {
-            toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-          } catch {
-            // called from a Server Component — middleware refreshes the session instead
-          }
-        },
-      },
-    },
-  );
-}
+/**
+ * Per-request client (RLS applies). Signed in via Auth.js → client with a short-lived Supabase JWT
+ * minted for `session.user.id` (D-026); anonymous → the shared anon client. Memoised per request.
+ */
+export const createClient = cache(async (): Promise<SupabaseClient> => {
+  const user = await getSessionUser();
+  return user ? createUserClient(user) : createAnonClient();
+});

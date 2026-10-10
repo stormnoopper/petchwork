@@ -166,13 +166,10 @@ update meta.data_sources d set last_success_at = now()
  where exists (select 1 from meta.data_snapshots s where s.source_code = d.code);
 
 -- ----------------------------------------------------------------------------- demo owner + demo field
--- Fixed-uuid system user that owns the public demo field. It has no usable password.
-insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
-                        raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
-                        confirmation_token, recovery_token, email_change_token_new, email_change)
-values ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000000de',
-        'authenticated', 'authenticated', 'demo@petchwork.local', '', now(),
-        '{"provider":"email","providers":["email"]}', '{"name":"demo"}', now(), now(), '', '', '', '')
+-- Fixed-uuid system user that owns the public demo field (app.users since D-026; cannot sign in —
+-- no Google account maps to this id).
+insert into app.users (id, email, name, provider, provider_account_id)
+values ('00000000-0000-0000-0000-0000000000de', 'demo@petchwork.local', 'demo', 'system', null)
 on conflict (id) do nothing;
 
 -- ~178 rai field straddling the KTms/KTpt and saline/fresh groundwater boundaries

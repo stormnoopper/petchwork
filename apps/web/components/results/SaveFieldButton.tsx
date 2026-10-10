@@ -19,21 +19,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { createClient } from '@/lib/supabase/client';
+import { fetchSessionUserId } from '@/lib/auth/client-session';
 import { parseCreatedField } from '@/lib/display/created-field';
 import { loginUrlForDraft, saveDraft } from '@/lib/display/draft';
 import th from '@/messages/th.json';
 
 const t = th.results.save;
-
-async function currentUserId(): Promise<string | null> {
-  try {
-    const { data } = await createClient().auth.getUser();
-    return data.user?.id ?? null;
-  } catch {
-    return null; // Supabase not configured / offline → treat as signed out
-  }
-}
 
 /** "บันทึกแปลงนี้" → login (with draft) or name + PDPA consent dialog → POST /api/fields → /fields/[id]. */
 export function SaveFieldButton({
@@ -65,7 +56,7 @@ export function SaveFieldButton({
 
   const onClick = async () => {
     setChecking(true);
-    const uid = await currentUserId();
+    const uid = await fetchSessionUserId();
     setChecking(false);
     if (!uid) {
       goLogin();
