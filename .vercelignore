@@ -1,0 +1,19 @@
+# Only apps/web + packages are needed to build. Never upload secrets or data caches.
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+node_modules
+**/node_modules
+**/.next
+etl
+supabase
+docs/report
+.claude
+playwright-report
+test-results
+coverage
+*.tsbuildinfo
+.DS_Store
