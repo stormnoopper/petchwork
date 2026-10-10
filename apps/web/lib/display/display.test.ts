@@ -21,7 +21,13 @@ import {
 import { toDisplayResult, toYearSeries } from './results';
 import { kgHaToKgRai, mmToM3PerRai, percentilesOf, quantile, tHaToTRai } from './units';
 import { parseCreatedField } from './created-field';
-import { nearestSnap, nextSnap, releaseSnap } from '@/components/results/sheet';
+import {
+  DEFAULT_SNAP,
+  nearestSnap,
+  nextSnap,
+  releaseSnap,
+  snapForStatus,
+} from '@/components/results/sheet';
 
 const V = [
   { lat: 16.2, lng: 103.2 },
@@ -289,6 +295,16 @@ describe('bottom sheet snaps', () => {
     expect(releaseSnap(0.25, 0.3, -1)).toBe(0.5);
     expect(releaseSnap(0.5, 0.45, 1)).toBe(0.25);
     expect(releaseSnap(0.5, 0.85, 0.1)).toBe(0.9);
+  });
+
+  it('defaults to 25% on new analysis and keeps the user snap otherwise (SPEC §5.5)', () => {
+    expect(DEFAULT_SNAP).toBe(0.25);
+    // new polygon → loading resets; the result arriving does not auto-expand
+    expect(snapForStatus(0.9, 'loading')).toBe(0.25);
+    expect(snapForStatus(0.25, 'success')).toBe(0.25);
+    // user dragged up while the result was showing; a later error/success keeps it
+    expect(snapForStatus(0.5, 'success')).toBe(0.5);
+    expect(snapForStatus(0.9, 'error')).toBe(0.9);
   });
 });
 

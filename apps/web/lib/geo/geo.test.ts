@@ -1,17 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import { PolygonGeoJSON, type LatLng } from '@rice/contracts';
-import { areaM2, areaM2Turf, formatRaiNganWa, relativeDiff } from './area';
+import { areaM2, areaM2Ellipsoidal, areaM2Turf, formatRaiNganWa, relativeDiff } from './area';
 import { fromGeoJSON, toGeoJSON } from './geojson';
 import { signedPlanarArea, sortCounterClockwise } from './order';
 import { MAX_EDGE_KM, edgeLengthsKm, hasKinks, validatePolygon } from './validate';
 
-/** turf's sphere: R = 6371008.8 m */
-const M_PER_DEG_LAT = (6371008.8 * Math.PI) / 180;
+/** WGS84 metres per degree at latitude φ (meridional radius M, parallel radius N·cosφ). */
+const A = 6378137;
+const E2 = (1 / 298.257223563) * (2 - 1 / 298.257223563);
+function mPerDeg(latDeg: number): { lat: number; lng: number } {
+  const s = Math.sin((latDeg * Math.PI) / 180);
+  const w = 1 - E2 * s * s;
+  const M = (A * (1 - E2)) / w ** 1.5;
+  const N = A / Math.sqrt(w);
+  return {
+    lat: (M * Math.PI) / 180,
+    lng: (N * Math.cos((latDeg * Math.PI) / 180) * Math.PI) / 180,
+  };
+}
 
-/** Axis-aligned w×h metre rectangle at (lat0, lng0), corners SW, SE, NE, NW (CCW). */
+/** Axis-aligned w×h metre rectangle at (lat0, lng0) on WGS84, corners SW, SE, NE, NW (CCW). */
 function rect(lat0: number, lng0: number, w: number, h: number): LatLng[] {
-  const dLat = h / M_PER_DEG_LAT;
-  const dLng = w / (M_PER_DEG_LAT * Math.cos(((lat0 + dLat / 2) * Math.PI) / 180));
+  const dLat = h / mPerDeg(lat0).lat;
+  const dLng = w / mPerDeg(lat0 + dLat / 2).lng;
   return [
     { lat: lat0, lng: lng0 },
     { lat: lat0, lng: lng0 + dLng },
@@ -89,31 +100,104 @@ describe('sortCounterClockwise (SPEC §12: crossed order 1-3-2-4)', () => {
   });
 });
 
-describe('area', () => {
+/** [lng, lat] ring (closing point optional) → LatLng[] */
+const ring = (coords: [number, number][]): LatLng[] => coords.map(([lng, lat]) => ({ lat, lng }));
+
+/**
+ * Reference values from the local DB (PostGIS 3.3.7 / PROJ 9.7.1, GeographicLib):
+ *   select ST_Area(ST_GeomFromText('POLYGON((…))', 4326)::geography)
+ */
+const POSTGIS_CASES: { name: string; ring: LatLng[]; m2: number }[] = [
+  {
+    name: '~178 ไร่ rectangle near 16°N (manual-test polygon)',
+    ring: ring([
+      [103.247, 16.048],
+      [103.253, 16.048],
+      [103.253, 16.052],
+      [103.247, 16.052],
+      [103.247, 16.048],
+    ]),
+    m2: 284193.356476784,
+  },
+  {
+    name: 'irregular quad near 7°N',
+    ring: ring([
+      [100.5, 7.0],
+      [100.505, 7.0],
+      [100.506, 7.004],
+      [100.5, 7.003],
+      [100.5, 7.0],
+    ]),
+    m2: 232174.562168986,
+  },
+  {
+    name: 'irregular quad near 20°N',
+    ring: ring([
+      [99.9, 20.0],
+      [99.903, 20.0005],
+      [99.9035, 20.003],
+      [99.8995, 20.0025],
+      [99.9, 20.0],
+    ]),
+    m2: 101366.857833624,
+  },
+  {
+    name: 'small ~7 ไร่ quad near 16.2°N',
+    ring: ring([
+      [103.3, 16.2],
+      [103.3012, 16.2001],
+      [103.3011, 16.2009],
+      [103.2999, 16.2008],
+      [103.3, 16.2],
+    ]),
+    m2: 11477.6470107697,
+  },
+];
+
+describe('area (WGS84 ellipsoidal, SPEC §12)', () => {
+  it.each(POSTGIS_CASES)('matches PostGIS ST_Area(geography) < 0.05%: $name', ({ ring: r, m2 }) => {
+    expect(relativeDiff(areaM2Ellipsoidal(r), m2)).toBeLessThan(0.0005);
+    // in practice it agrees to ~1e-9; guard against silent regressions to a spherical formula
+    expect(relativeDiff(areaM2Ellipsoidal(r), m2)).toBeLessThan(1e-6);
+    // and with or without the closing vertex
+    expect(relativeDiff(areaM2Ellipsoidal(r.slice(0, -1)), m2)).toBeLessThan(1e-6);
+  });
+
+  it('manual-test polygon: badge label == panel label == PostGIS label', () => {
+    const c = POSTGIS_CASES[0]!;
+    const open = c.ring.slice(0, -1);
+    const shown = formatRaiNganWa(areaM2(open)); // AreaBadge and ResultPanel both format areaM2()
+    expect(shown).toBe('177 ไร่ 2 งาน 48 ตร.ว.');
+    expect(shown).toBe(formatRaiNganWa(c.m2));
+    // regression: the old spherical (turf / google computeArea, R = 6 378 137 m) value read ~0.35% high
+    expect(formatRaiNganWa(areaM2Turf(open))).not.toBe(shown);
+  });
+
+  it('areaM2 is the ellipsoidal value and ignores google.maps.geometry', () => {
+    const v = rect(LAT, LNG, 40, 40);
+    const g = globalThis as { google?: unknown };
+    g.google = { maps: { geometry: { spherical: { computeArea: () => -1234 } } } };
+    try {
+      expect(areaM2(v)).toBe(areaM2Ellipsoidal(v));
+    } finally {
+      delete g.google;
+    }
+  });
+
   it('40 m × 40 m square = 1 ไร่ ± 0.5%', () => {
-    const a = areaM2Turf(rect(LAT, LNG, 40, 40));
+    const a = areaM2(rect(LAT, LNG, 40, 40));
     expect(relativeDiff(a, RAI_M2)).toBeLessThan(0.005);
     expect(formatRaiNganWa(a)).toBe('1 ไร่');
   });
 
   it('is independent of vertex order direction', () => {
     const v = rect(LAT, LNG, 100, 64);
-    expect(relativeDiff(areaM2Turf(v), areaM2Turf([...v].reverse()))).toBeLessThan(1e-9);
+    expect(relativeDiff(areaM2(v), areaM2([...v].reverse()))).toBeLessThan(1e-9);
   });
 
-  it('falls back to turf when google.maps.geometry is not loaded', () => {
-    const v = rect(LAT, LNG, 40, 40);
-    expect(areaM2(v)).toBe(areaM2Turf(v));
-  });
-
-  it('uses google.maps.geometry.spherical.computeArea when available', () => {
-    const g = globalThis as { google?: unknown };
-    g.google = { maps: { geometry: { spherical: { computeArea: () => -1234 } } } };
-    try {
-      expect(areaM2(rect(LAT, LNG, 40, 40))).toBe(1234);
-    } finally {
-      delete g.google;
-    }
+  it('turf cross-check stays within 0.6% (spherical vs ellipsoidal)', () => {
+    const v = rect(LAT, LNG, 160, 100);
+    expect(relativeDiff(areaM2Turf(v), areaM2(v))).toBeLessThan(0.006);
   });
 
   it('returns 0 for < 3 vertices', () => {
@@ -165,7 +249,7 @@ describe('validatePolygon (SPEC §5.2)', () => {
     expect(validatePolygon(rect(LAT, LNG, 1000, 784)).warnings).toEqual([]);
   });
 
-  it('uses the area override (computeArea) when given', () => {
+  it('uses the area override when given', () => {
     const r = validatePolygon(rect(LAT, LNG, 160, 100), 100);
     expect(r.warnings).toEqual(['areaTooSmall']);
   });

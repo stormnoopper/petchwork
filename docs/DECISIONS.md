@@ -85,3 +85,6 @@
 
 ## D-028 · 2026-10-10 · Orchestrator
 **Seed ขอบเขต 77 จังหวัดจริง** (`supabase/seed_provinces.sql`, GISTDA 1:50k simplify 0.002°, ~0.6 MB) โหลดหลัง `seed.sql` แทน bbox หยาบ 3 จังหวัด · ทุกจังหวัดมีแถว `province_coverage` (enabled=false ยกเว้น 44) · แก้ bug: ปักในกรุงเทพได้ `OUTSIDE_THAILAND` → ตอนนี้ได้ `PROVINCE_NOT_ENABLED` · ETL จริงจะ swap ความละเอียดเต็มทับ
+
+## D-029a · 2026-10-10 · Orchestrator
+**พื้นที่ที่แสดงและใช้ validate = WGS84 ellipsoidal** (authalic-sphere excess, `lib/geo/areaM2`) เท่ากับ PostGIS geography (ต่างกัน ~1e-12) · badge, ResultPanel และรายงานใช้ค่าเดียวกัน · ไม่ใช้ `google.maps.geometry.computeArea` (ทรงกลม R=6378137 ให้ค่าสูงกว่า ~0.35%) · bottom sheet default 25% และไม่เด้งขึ้นเมื่อผลมาถึง

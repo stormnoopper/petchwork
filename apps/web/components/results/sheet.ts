@@ -29,3 +29,18 @@ export function releaseSnap(current: Snap, fraction: number, velocityPxMs: numbe
   }
   return nearestSnap(fraction);
 }
+
+/** First/default snap (SPEC §5.5): 25 % = the 4-number summary, map stays usable above. */
+export const DEFAULT_SNAP: Snap = 0.25;
+
+type AnalysisStatus = 'idle' | 'loading' | 'success' | 'error';
+
+/**
+ * Snap after the analysis status changes: a new request (new polygon / retry) resets to the
+ * 25 % default; the result arriving keeps whatever the sheet is at (so it opens at 25 %, never
+ * auto-expands). Practice edits recompute client-side without a status change, so the user's
+ * chosen snap is kept.
+ */
+export function snapForStatus(current: Snap, next: AnalysisStatus): Snap {
+  return next === 'loading' ? DEFAULT_SNAP : current;
+}

@@ -10,7 +10,7 @@ import { fmt } from '@/lib/display/fmt';
 import { locationLabel } from '@/lib/display/location';
 import { defaultPracticesFor } from '@/lib/display/practices';
 import { toDisplayResult, toYearSeries } from '@/lib/display/results';
-import { formatRaiNganWa } from '@/lib/units';
+import { formatRaiNganWa, m2ToRai } from '@/lib/units';
 import th from '@/messages/th.json';
 import { ResponsivePanel } from './BottomSheet';
 import { DataFooter, SourcesList } from './DataFooter';
@@ -18,7 +18,7 @@ import { PracticesForm } from './PracticesForm';
 import { GhgCard, ResultSummary, SalinityCard, WaterCard, YieldCard } from './ResultCards';
 import { SaveFieldButton } from './SaveFieldButton';
 import { YearlyChartsLazy } from './YearlyChartsLazy';
-import type { Snap } from './sheet';
+import { DEFAULT_SNAP, snapForStatus, type Snap } from './sheet';
 
 const t = th.results;
 
@@ -35,7 +35,7 @@ export type ResultPanelProps = {
 };
 
 /** Client-side recompute (SPEC §5.1 step 10): same profile + weather, new practices — no request. */
-function useRecompute(data: OkResponse | null, practices: Practices) {
+function useRecompute(data: OkResponse | null, practices: Practices, areaRai: number | null) {
   return useMemo(() => {
     if (!data) return null;
     let quick: SeasonResult = data.quick;
@@ -55,11 +55,11 @@ function useRecompute(data: OkResponse | null, practices: Practices) {
       failed = true;
     }
     return {
-      display: toDisplayResult(quick, years, data.profile.area_rai),
+      display: toDisplayResult(quick, years, areaRai),
       series: toYearSeries(years),
       failed,
     };
-  }, [data, practices]);
+  }, [data, practices, areaRai]);
 }
 
 export function ResultPanel({
@@ -82,15 +82,17 @@ export function ResultPanel({
     if (!touched) setPractices(defaultPracticesFor(profile));
   }
 
-  const [snap, setSnap] = useState<Snap>(0.25);
+  const [snap, setSnap] = useState<Snap>(DEFAULT_SNAP);
   const [lastStatus, setLastStatus] = useState(analysis.status);
   if (analysis.status !== lastStatus) {
     setLastStatus(analysis.status);
-    if (analysis.status === 'loading') setSnap(0.25);
-    else if (analysis.status === 'success' && lastStatus === 'loading') setSnap(0.5);
+    setSnap(snapForStatus(snap, analysis.status));
   }
 
-  const computed = useRecompute(data, practices);
+  // One area source for everything shown (SPEC §12): the client WGS84-ellipsoidal value of the
+  // drawn polygon — identical to the map AreaBadge. profile.area_m2 (PostGIS) only as a fallback.
+  const areaM2 = field && field.areaM2 > 0 ? field.areaM2 : (profile?.area_m2 ?? 0);
+  const computed = useRecompute(data, practices, areaM2 > 0 ? m2ToRai(areaM2) : null);
   const hidden = analysis.status === 'idle';
 
   return (
@@ -103,12 +105,12 @@ export function ResultPanel({
             <p className="flex items-start gap-1 text-base text-muted-foreground">
               <MapPin className="mt-1 size-4 shrink-0" aria-hidden />
               <span>
-                {locationLabel(profile)} · {fmt(t.area, { area: formatRaiNganWa(profile.area_m2) })}
+                {locationLabel(profile)} · {fmt(t.area, { area: formatRaiNganWa(areaM2) })}
               </span>
             </p>
-          ) : field && field.areaM2 > 0 ? (
+          ) : areaM2 > 0 ? (
             <p className="text-base text-muted-foreground">
-              {fmt(t.area, { area: formatRaiNganWa(field.areaM2) })}
+              {fmt(t.area, { area: formatRaiNganWa(areaM2) })}
             </p>
           ) : null}
         </header>

@@ -1,7 +1,7 @@
 import { distance as turfDistance, kinks as turfKinks, point } from '@turf/turf';
 import { MAX_VERTICES_PHASE1, M2_PER_RAI, type LatLng } from '@rice/contracts';
 import { toGeoJSON } from './geojson';
-import { areaM2Turf } from './area';
+import { areaM2 } from './area';
 
 /** SPEC §5.2 thresholds */
 export const MIN_AREA_RAI = 0.5;
@@ -10,11 +10,7 @@ export const MAX_EDGE_KM = 3;
 
 /** Keys into `messages/th.map.json` → `validation.*` */
 export type ValidationKey =
-  | 'incomplete'
-  | 'selfIntersecting'
-  | 'areaTooSmall'
-  | 'areaTooLarge'
-  | 'edgeTooLong';
+  'incomplete' | 'selfIntersecting' | 'areaTooSmall' | 'areaTooLarge' | 'edgeTooLong';
 
 export type ValidationResult = {
   /** false when a blocking error exists (do not analyze) */
@@ -42,7 +38,7 @@ export function edgeLengthsKm(vertices: readonly LatLng[]): number[] {
 
 /**
  * Client-side polygon checks (SPEC §5.2). Outside-Thailand / province checks happen on the server.
- * @param areaM2Override pass the Google `computeArea` result when available; turf otherwise.
+ * @param areaM2Override precomputed area (m²) from `areaM2()`; computed (WGS84 ellipsoidal) when omitted.
  */
 export function validatePolygon(
   vertices: readonly LatLng[],
@@ -57,7 +53,7 @@ export function validatePolygon(
 
   if (hasKinks(vertices)) errors.push('selfIntersecting');
 
-  const rai = (areaM2Override ?? areaM2Turf(vertices)) / M2_PER_RAI;
+  const rai = (areaM2Override ?? areaM2(vertices)) / M2_PER_RAI;
   if (rai < MIN_AREA_RAI) warnings.push('areaTooSmall');
   else if (rai > MAX_AREA_RAI) warnings.push('areaTooLarge');
 

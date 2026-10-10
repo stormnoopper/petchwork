@@ -10,7 +10,7 @@ export type FieldDrawResult = {
   vertices: LatLng[];
   /** closed [lng,lat] ring; null until 4 vertices are placed */
   polygon: PolygonGeoJSON | null;
-  /** m² (google computeArea when loaded, turf otherwise); 0 below 3 vertices */
+  /** m², WGS84 ellipsoidal (`lib/geo/area.ts` areaM2 — same as PostGIS geography); 0 below 3 vertices */
   areaM2: number;
   /** true = OK to call /api/analyze (no blocking error, area warnings confirmed) */
   valid: boolean;
