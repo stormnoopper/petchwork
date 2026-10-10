@@ -1,0 +1,50 @@
+# DGR แผนที่น้ำบาดาล 1:100,000 — field map (SPEC §6: map per province, never hardcode)
+#
+# Inspected 2026-10-10: มหาสารคาม (resource b9e68d60-…, RAR v5, 2.5 MB). Archive layout:
+#   จังหวัดมหาสารคาม/{Amphoe,GWAV,Hydrounit,Province,Tambon}_มหาสารคาม.shp  (+ 2 .mxd, ignored)
+#   GWAV_*.shp      557 polygons, EPSG:24047 (Indian 1975 / UTM 47N) ← groundwater availability (used)
+#     FID_gwav_t int · GWAV str (B1..B4/G1..G4/R1..R4) · TDS str · YIELD str · DESC_ str
+#     FID_Provin int · PROV_NAM_T str · office_18 str · rai float
+#     GWAV letter = TDS class (B=blue <500, G=green 500–1,500, R=red >1,500 mg/L), digit = yield class
+#     1 row with all-null attributes (FID_gwav_t = -1, province remainder) → dropped
+#     10/557 polygons invalid in source → ST_MakeValid in staging
+#   Hydrounit_*.shp 17 polygons — aquifer units (Ms = Maha Sarakham aquifer, Qfd, KTpt, Kk) (not loaded yet)
+#   NO fields for EC, well depth or static water level → ec_dsm derived from TDS, depth_m = null.
+#
+# Value strategy (ASSUMPTION — review with DGR hydrogeologist):
+#   tds_mgl  = representative value of the class range (midpoint; open-ended '>1,500' → 2,250)
+#   ec_dsm   = tds_mgl / ec_from_tds_factor  (TDS[mg/L] ≈ 640 × EC[dS/m], FAO-29)
+#   yield    = midpoint of the class range in m³/hr (open-ended '>20' → 25)
+
+default:
+  layer_glob: "GWAV_*.shp"         # glob inside the extracted archive (recursive)
+  fields:
+    class: GWAV
+    tds: TDS
+    yield: YIELD
+    depth: null                    # not present in DGR 1:100k GWAV layers
+    ec: null
+  drop_if_null: GWAV
+  quality_class_by_prefix:         # first letter of GWAV
+    B: fresh
+    G: brackish
+    R: saline
+  tds_classes_mgl:                 # raw TDS string → representative mg/L
+    "<500": 250
+    "500-1,500": 1000
+    "500-1500": 1000
+    ">1,500": 2250
+    ">1500": 2250
+    "1,500": 2250                  # typo in source for R4 (= '>1,500')
+  yield_classes_m3_hr:
+    "<2": 1
+    "<5": 2.5
+    "2-10": 6
+    "5-10": 7.5
+    "10-20": 15
+    ">20": 25
+  ec_from_tds_factor: 640
+
+# Per-province overrides (key = 2-digit province code). Only keys that differ from `default`.
+provinces:
+  "44": {}   # มหาสารคาม — verified 2026-10-10

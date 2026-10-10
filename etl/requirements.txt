@@ -1,0 +1,12 @@
+# ETL runtime (Python 3.11–3.13; GDAL wheels bundled with rasterio/pyogrio)
+requests>=2.32
+psycopg[binary]>=3.2
+numpy>=2.0
+shapely>=2.0
+pyproj>=3.6
+pyogrio>=0.10
+geopandas>=1.0
+rasterio>=1.4
+pyyaml>=6.0
+# tests
+pytest>=8.0

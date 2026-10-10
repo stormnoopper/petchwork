@@ -1,0 +1,17 @@
+[project]
+name = "petchwork-etl"
+version = "0.1.0"
+description = "Thai Rice Digital Twin — ETL (check → fetch → stage → validate → swap → record → recompute → notify)"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "requests>=2.32", "psycopg[binary]>=3.2", "numpy>=2.0", "shapely>=2.0", "pyproj>=3.6",
+  "pyogrio>=0.10", "geopandas>=1.0", "rasterio>=1.4", "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = ["db: needs the local Supabase Postgres (DATABASE_URL)", "network: hits external services"]

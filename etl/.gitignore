@@ -1,0 +1,6 @@
+# Local virtualenv + downloaded/untrusted raw data (never commit)
+.venv/
+.raw/
+__pycache__/
+.pytest_cache/
+*.pyc

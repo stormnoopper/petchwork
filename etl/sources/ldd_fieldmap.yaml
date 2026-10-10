@@ -1,0 +1,36 @@
+# LDD (กรมพัฒนาที่ดิน) manual-file field map — PLACEHOLDER (D-002).
+# Files are requested by letter and dropped into etl/.raw/ldd/manual/<yyyy-mm-dd>/
+# (or Storage etl-raw/ldd/manual/…, synced locally before the run). Accepted: .shp, .gpkg, .geojson, .zip
+# Adjust the source field names below once the real files arrive (they are NOT known yet).
+
+soil:                       # → ref.soil_units
+  layer_glob: ["*soilgroup*", "*soil_group*", "*soil_series*", "*ชุดดิน*"]   # any of .shp/.gpkg/.geojson/.zip
+  fields:
+    soil_group: SOILGROUP
+    soil_series: SOIL_SERIES
+    texture: TEXTURE
+    drainage: DRAINAGE
+    ph: PH
+    ksat_mm_day: null
+    awc_mm_m: null
+
+saline:                     # → ref.saline_soil_zones
+  layer_glob: ["*salin*", "*ดินเค็ม*"]
+  fields:
+    salinity_level: SALINITY
+    salt_crust_pct: SALT_PCT
+  # source value → salinity_level enum (very_high | high | moderate | low | none)
+  salinity_level_map:
+    "1": very_high
+    "2": high
+    "3": moderate
+    "4": low
+    "5": none
+    "เค็มจัด": very_high
+    "เค็มมาก": high
+    "เค็มปานกลาง": moderate
+    "เค็มน้อย": low
+  # salinity_origin per province code (coastal provinces → coastal_intrusion), default inland
+  default_origin: inland_rock_salt
+  coastal_provinces: ["11", "20", "21", "22", "23", "24", "74", "75", "76", "77", "80", "81", "82", "83", "84",
+                      "85", "86", "90", "91", "92", "93", "94", "96", "10"]

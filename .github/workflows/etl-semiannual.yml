@@ -1,0 +1,74 @@
+# Semiannual tier (1 Jan/Jul): DMR rock units, GISTDA irrigation + admin, DGR groundwater, SoilGrids, JRC, LDD manual files.
+# Cron is UTC: 19:00 UTC = 02:00 ICT of the following day (SPEC §6.1).
+# Sources are chosen by meta.data_sources.refresh_tier = 'semiannual' (editable without code changes).
+name: etl-semiannual
+
+on:
+  schedule:
+    - cron: "0 19 1 1,7 *"
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "รันเฉพาะแหล่ง (เว้นว่าง = ทั้ง tier) เช่น dmr,dgr หรือ open_meteo"
+        required: false
+        default: ""
+      dry_run:
+        description: "หยุดหลัง validate (ไม่ swap)"
+        type: boolean
+        default: false
+      force:
+        description: "ไม่สนใจ checksum เดิม"
+        type: boolean
+        default: false
+
+concurrency:
+  group: etl-semiannual
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  etl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    container: ghcr.io/osgeo/gdal:ubuntu-small-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System packages (python venv + bsdtar for DGR .rar)
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends python3-venv python3-pip libarchive-tools ca-certificates
+
+      - name: Install ETL
+        run: |
+          python3 -m venv /opt/etl
+          /opt/etl/bin/pip install -q -r etl/requirements.txt
+
+      - name: Run ETL (semiannual)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ETL_ALERT_WEBHOOK: ${{ secrets.ETL_ALERT_WEBHOOK }}
+          GEE_SERVICE_ACCOUNT_JSON: ${{ secrets.GEE_SERVICE_ACCOUNT_JSON }}
+          THAIWATER_API_KEY: ${{ secrets.THAIWATER_API_KEY }}
+          TMD_API_KEY: ${{ secrets.TMD_API_KEY }}
+          # inputs go through env (never interpolated into the script) and are validated below
+          IN_SOURCE: ${{ inputs.source }}
+          IN_DRY_RUN: ${{ inputs.dry_run }}
+          IN_FORCE: ${{ inputs.force }}
+          ETL_SCOPE: ${{ vars.ETL_SCOPE }}   # 'pilot' (default, Maha Sarakham bbox) | 'nationwide'
+        run: |
+          set -eu
+          args="--tier semiannual"
+          if [ -n "${IN_SOURCE:-}" ]; then
+            echo "$IN_SOURCE" | grep -Eq '^[a-z0-9_,]+$' || { echo "invalid source input"; exit 2; }
+            args="$args --source $IN_SOURCE"
+          fi
+          [ "${IN_DRY_RUN:-false}" = "true" ] && args="$args --dry-run"
+          [ "${IN_FORCE:-false}" = "true" ] && args="$args --force"
+          [ "${ETL_SCOPE:-pilot}" = "nationwide" ] && args="$args --nationwide"
+          [ -n "${SUPABASE_URL:-}" ] && args="$args --upload-raw"
+          /opt/etl/bin/python etl/run.py $args

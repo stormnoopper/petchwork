@@ -64,3 +64,15 @@
 
 ## D-021 · 2026-10-10 · frontend-ui
 **ResultPanel / รายงาน** — bottom sheet เขียนเอง (`ResponsivePanel`, DOM เดียว non-modal) แทน Base UI Drawer เพื่อให้หมุนจอแล้ว state ไม่หาย · draft ก่อน login เก็บใน session+localStorage TTL 1 ชม. ลบทันทีเมื่อกู้ (magic link เปิดแท็บใหม่) · ResultPanel คำนวณฝั่ง client เสมอด้วย practices เดียวกับ server · P10–P90 ของน้ำและ GHG มาจาก ensemble รายปี · รายงานแปลง Phase 1 คำนวณฝั่ง server จาก profile + weather (ยังไม่ใช้ twin runs) · กราฟ 2 ชุดแยก ไม่ใช้ dual axis
+
+## D-022 · 2026-10-10 · etl-engineer
+**ETL runtime** — Python 3.12 ใน `uv` venv (`etl/.venv`; 3.14 ยังไม่มี wheel rasterio/pyogrio) · แตก RAR5 ด้วย `/usr/bin/bsdtar` · `ingest_jobs.status` = running|success|skipped|dry_run|blocked|failed · ขอบเขต cron ผ่าน repo variable `ETL_SCOPE` (default `pilot`) · เพิ่ม `etl-manual.yml` สำหรับ tier static/manual และปุ่ม "รันตอนนี้"
+
+## D-023 · 2026-10-10 · etl-engineer
+**DGR ไม่มี EC และความลึก** — ใช้ชั้น `GWAV_*.shp` (EPSG:24047) · `ec_dsm = TDS/640` (FAO-29) · TDS/yield ใช้ค่ากลางช่วง (ปลายเปิด `>1,500`→2,250, `>20`→25 = ASSUMPTION) · `depth_m = null` · B/G/R → fresh/brackish/saline · **ต้องให้กรมทรัพยากรน้ำบาดาลตรวจ** · ผลต่อโมเดล: CR จากน้ำใต้ดินใช้ default ความลึก (ไม่มีข้อมูลจริง)
+
+## D-024 · 2026-10-10 · etl-engineer
+**Swap / validate** — swap ใน transaction เดียว เปลี่ยนชื่อ index/sequence แล้วคืนชื่อเดิม เก็บ archive 2 เวอร์ชัน · `changed_area` = envelope ของแถวที่เปลี่ยน · row delta เทียบตาราง live (ข้ามถ้ายังเป็น seed) · checksum prefix ด้วย scope (`bbox`/`nationwide`) · grid_update ล้างคอลัมน์ของแหล่งใน bbox ก่อนเติม · ERA5 pilot ผ่าน archive API `models=era5_seamless` (era5_land คืน null บางตัวแปร) · ทั้งประเทศต้องอ่าน S3 `.om` (ยังเป็น stub `skipped: use_bulk_s3`) · ลม 10 m → 2 m × 0.748 (FAO-56) · GISTDA `PV_CODE` = รหัส DOPA 2 หลัก, อำเภอ `AP_IDN`
+
+## D-025 · 2026-10-10 · Orchestrator
+**Migration 0600** — `obs.rain_station_daily`, `ref.groundwater_zones.aquifer_unit`, คิว pgmq `profile_refresh` (consumer ยังไม่มี — ETL fallback เรียก `analyze_polygon` แบบ sync) · `dgr_groundwater` คง tier semiannual (ไฟล์แผนที่รายจังหวัด) ส่วนระดับ/คุณภาพน้ำบาดาลรายไตรมาสยังไม่มีแหล่ง
