@@ -17,7 +17,8 @@ const Y_MAX = 500;
 const x = (i: number) => PAD.l + (i / (YEARS - 1)) * (W - PAD.l - PAD.r);
 const y = (v: number) => PAD.t + (1 - (v - Y_MIN) / (Y_MAX - Y_MIN)) * (H - PAD.t - PAD.b);
 
-const line = (vals: number[]) => vals.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+const line = (vals: number[]) =>
+  vals.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
 const band =
   line(P90) +
   ' ' +
@@ -50,14 +51,36 @@ export function ReportPreview() {
         <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" aria-hidden>
           {[200, 300, 400, 500].map((v) => (
             <g key={v}>
-              <line x1={PAD.l} x2={W - PAD.r} y1={y(v)} y2={y(v)} stroke="currentColor" strokeOpacity={0.12} />
-              <text x={PAD.l - 6} y={y(v) + 4} textAnchor="end" fontSize={11} fill="currentColor" fillOpacity={0.7}>
+              <line
+                x1={PAD.l}
+                x2={W - PAD.r}
+                y1={y(v)}
+                y2={y(v)}
+                stroke="currentColor"
+                strokeOpacity={0.12}
+              />
+              <text
+                x={PAD.l - 6}
+                y={y(v) + 4}
+                textAnchor="end"
+                fontSize={11}
+                fill="currentColor"
+                fillOpacity={0.7}
+              >
                 {v}
               </text>
             </g>
           ))}
           {[0, 5, 10].map((i) => (
-            <text key={i} x={x(i)} y={H - 6} textAnchor="middle" fontSize={11} fill="currentColor" fillOpacity={0.7}>
+            <text
+              key={i}
+              x={x(i)}
+              y={H - 6}
+              textAnchor="middle"
+              fontSize={11}
+              fill="currentColor"
+              fillOpacity={0.7}
+            >
               {2569 + i}
             </text>
           ))}
