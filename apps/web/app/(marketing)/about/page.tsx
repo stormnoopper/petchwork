@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ProsePage } from '@/components/marketing/prose-page';
+import { ResearchNote } from '@/lib/display/research';
 import th from '@/messages/th.json';
 
 const t = th.about;
@@ -14,6 +15,10 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <ProsePage title={t.title} intro={t.intro}>
+      <section className="space-y-3 rounded-xl border bg-muted/40 p-4">
+        <h2 className="text-xl font-semibold">{th.research.aboutTitle}</h2>
+        <ResearchNote />
+      </section>
       {t.sections.map((s) => (
         <section key={s.title} className="space-y-3">
           <h2 className="text-xl font-semibold">{s.title}</h2>

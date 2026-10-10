@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ResearchNote } from '@/lib/display/research';
 import th from '@/messages/th.json';
 
 const LINKS = [
@@ -16,6 +17,7 @@ export function SiteFooter() {
         <div className="space-y-2">
           <p className="text-lg font-bold">{th.marketing.brand}</p>
           <p className="text-base text-muted-foreground">{th.marketing.brandTagline}</p>
+          <ResearchNote className="text-base" />
           <nav aria-label={th.marketing.footer.about} className="flex flex-wrap gap-x-2 pt-2">
             {LINKS.map((l) => (
               <Link

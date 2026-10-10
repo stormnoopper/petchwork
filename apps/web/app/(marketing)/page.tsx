@@ -100,7 +100,6 @@ export default async function LandingPage() {
                 {t.ctaDemo}
               </Link>
             </div>
-            <p className="text-base text-muted-foreground">{t.heroNote}</p>
           </div>
           <div className="mx-auto w-full max-w-sm lg:max-w-md">
             <Image
