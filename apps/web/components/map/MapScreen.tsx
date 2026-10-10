@@ -6,6 +6,7 @@ import { ResultPanel } from '@/components/results/ResultPanel';
 import { RESTORE_PARAM, takeDraft, type FieldDraft } from '@/lib/display/draft';
 import { cn } from '@/lib/utils';
 import { availabilityFromCoverage } from './layerStyles';
+import { SignOutButton } from './SignOutButton';
 import type { FieldDrawResult } from './types';
 import { useAnalyze } from './useAnalyze';
 import { mapMessages as m } from './messages';
@@ -71,6 +72,7 @@ export function MapScreen() {
             onPolygonChange={setField}
             initialVertices={draft?.vertices}
             layerAvailability={availabilityFromCoverage(coverage)}
+            topStart={<SignOutButton />}
           />
         ) : (
           <MapLoading />

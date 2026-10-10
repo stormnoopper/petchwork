@@ -36,6 +36,8 @@ export type FieldDrawerProps = {
   /** Extra status line rendered in the bottom message stack (e.g. analyze progress). */
   status?: ReactNode;
   className?: string;
+  /** Extra control at the top-left, on the same row as the layer toggle (e.g. sign-out). */
+  topStart?: ReactNode;
   /**
    * Restore a previous drawing (e.g. post-login draft). Read once on mount: up to 4 vertices are
    * placed (CCW-sorted when 4), the map fits to them, and onPolygonChange fires as usual.
@@ -184,6 +186,7 @@ export default function FieldDrawer({
   onPolygonChange,
   status,
   className,
+  topStart,
   initialVertices,
   layerAvailability,
 }: FieldDrawerProps) {
@@ -350,7 +353,8 @@ export default function FieldDrawer({
               </span>
             </div>
           </div>
-          <div className="flex justify-end">
+          <div className="flex items-start justify-between gap-2">
+            <div className="pointer-events-auto">{topStart}</div>
             <LayerToggle lddAvailable={layerAvailability} />
           </div>
         </div>
