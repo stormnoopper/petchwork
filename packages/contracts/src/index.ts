@@ -314,7 +314,7 @@ export const CreateFieldRequest = z.object({
 export type CreateFieldRequest = z.infer<typeof CreateFieldRequest>;
 
 export const Field = z.object({
-  id: z.uuid(),
+  id: z.guid(),
   name: z.string(),
   vertices: z.array(LatLng),
   area_rai: z.number(),
@@ -355,12 +355,12 @@ export type ResultSeasonRow = z.infer<typeof ResultSeasonRow>;
 
 /** Result of `rpc('field_results')` — owner or demo field only. */
 export const FieldResults = z.object({
-  field_id: z.uuid(),
+  field_id: z.guid(),
   profile: FieldProfile.nullable(),
   computed_at: z.string().nullable(),
   runs: z.array(
     z.object({
-      run_id: z.uuid(),
+      run_id: z.guid(),
       scenario_id: z.string(),
       status: RunStatus,
       model_version: z.string(),
@@ -412,3 +412,30 @@ export const M2_PER_SQ_WA = 4;
 export const HA_PER_RAI = 0.16;
 
 export const ATTRIBUTION_THAIWATER = 'คลังข้อมูลน้ำแห่งชาติ (สสน.)';
+
+// ---------------------------------------------------------------- API envelopes (v0.4)
+
+export const ApiError = z.object({
+  ok: z.literal(false),
+  error: z.string(),
+  message_th: z.string(),
+  issues: z.unknown().optional(),
+});
+export type ApiError = z.infer<typeof ApiError>;
+
+export const FieldDetailResponse = z.object({ field: Field, results: FieldResults.nullable() });
+export type FieldDetailResponse = z.infer<typeof FieldDetailResponse>;
+
+export const UpdateFieldRequest = z
+  .object({
+    name: z.string().min(1).max(100).optional(),
+    vertices: z.array(LatLng).min(3).max(64).optional(),
+    polygon: PolygonGeoJSON.optional(),
+  })
+  .refine((v) => (v.vertices === undefined) === (v.polygon === undefined), {
+    message: 'vertices and polygon must be sent together',
+  });
+export type UpdateFieldRequest = z.infer<typeof UpdateFieldRequest>;
+
+export const EnqueueRunRequest = z.object({ scenario_id: ScenarioId });
+export type EnqueueRunRequest = z.infer<typeof EnqueueRunRequest>;

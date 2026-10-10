@@ -55,3 +55,9 @@
 
 ## D-018 · 2026-10-10 · map-ui
 **LayerToggle** — deck.gl `GoogleMapsOverlay({interleaved:false})` + `MVTLayer` โหลดด้วย `import()` ตอนเปิดชั้นแรกเท่านั้น (~270 KiB gzip) · ปิด loaders.gl worker (เลี่ยงโหลดจาก CDN) · `pickable:false` ทุกชั้นใน Phase 1 · ชั้น LDD แสดงเมื่อ `profile.coverage.has_ldd_*` เป็น true เท่านั้น · `FieldDrawer` รับ `initialVertices` (อ่านครั้งเดียวตอน mount) สำหรับกู้ draft
+
+## D-019 · 2026-10-10 · api-integrator
+**/api/analyze** ใช้ anon client ไม่ผูก cookie · cache in-memory LRU ต่อ instance (analyze 500/1h, weather ต่อ grid 200/1h) — serverless ไม่แชร์ข้าม instance ต้องย้ายไป KV ถ้าจำเป็น · HTTP 400 (zod) / 422 (RPC error) / 500 · response ~409 KB (weather 10 ปี) → ต้องเปิด gzip/brotli · geom ส่งเข้า PostgREST เป็น EWKT · ownership error (42501) แปลงเป็น 404 · auth dev = email magic link + OTP 6 หลัก (phone OTP = TODO) · `measuredEc*` / `lastYieldKgPerRai` ยังไม่ถูกเก็บ (ควรไป `app.field_observations`)
+
+## D-020 · 2026-10-10 · Orchestrator
+**Contract v0.4** — id ใช้ `z.guid()` แทน `z.uuid()` (zod v4 strict RFC ปฏิเสธ `DEMO_FIELD_ID`) · เพิ่ม `ApiError`, `FieldDetailResponse`, `UpdateFieldRequest`, `EnqueueRunRequest` · supabase auth `site_url` = `http://localhost:3000` + redirect allowlist

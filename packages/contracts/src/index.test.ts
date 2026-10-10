@@ -24,3 +24,10 @@ describe('contracts', () => {
     expect(r.success).toBe(true);
   });
 });
+
+import { DEMO_FIELD_ID, Field } from './index';
+describe('ids', () => {
+  it('accepts demo field id', () => {
+    expect(Field.shape.id.safeParse(DEMO_FIELD_ID).success).toBe(true);
+  });
+});
