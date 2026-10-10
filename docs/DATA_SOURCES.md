@@ -18,7 +18,7 @@
 | 8 | HDX COD-AB (ตำบล) | `ref.admin_boundaries` (subdistrict) | ✅ | ไม่ต้อง | zip 437 MB | semiannual |
 | 9 | ERA5-Land (Open-Meteo S3 / CDS) | `obs.weather_daily` backfill | ✅ | ไม่ต้อง (S3) / account (CDS) | Open-Meteo `.om` / NetCDF | static |
 | 10 | Open-Meteo API | `obs.weather_daily` รายวัน + พยากรณ์ | ✅ | ไม่ต้อง (free 10k call/วัน) | JSON | daily |
-| 11 | NASA POWER | สำรองอากาศ | ✅ | ไม่ต้อง | JSON | – |
+| 11 | NASA POWER | `obs.weather_daily` ทั้งประเทศ (จุด 0.25°, D-029) | ✅ | ไม่ต้อง | JSON | static (โหลดครั้งเดียว + เติมได้) |
 | 12 | SoilGrids 250m | `ref.grid_cells.sg_*` (+ fallback LDD) | ✅ อ่าน COG | ไม่ต้อง | COG / REST | semiannual |
 | 13 | CHIRPS | ฝน (grid) | ✅ | ไม่ต้อง | GeoTIFF | quarterly |
 | 14 | JRC Global Surface Water | แหล่งน้ำ | ✅ | ไม่ต้อง | GeoTIFF (97 MB/tile) | semiannual |
@@ -69,7 +69,11 @@
 - **ไม่มีไฟล์ 14 จังหวัด:** เชียงราย เชียงใหม่ น่าน พะเยา แพร่ แม่ฮ่องสอน ลำปาง ลำพูน อุตรดิตถ์ ยะลา ระนอง สงขลา สตูล สุราษฎร์ธานี
 - **มีรายการแต่ไม่มี URL:** เพชรบูรณ์
 - `gis.dgr.go.th` (http/https, `/arcgis/rest/services`) — **timeout**
-- ⚠️ ยังไม่ได้แตกไฟล์ดู schema → ใช้ `etl/sources/dgr_fieldmap.yaml` map field ต่อจังหวัด
+- ✅ แตกครบ 62 จังหวัดแล้ว (2026-10-10, D-029) — ทุกไฟล์มีชั้น `GWAV_*.shp` field `GWAV/TDS/YIELD` เหมือนกัน (map ใน `etl/sources/dgr_fieldmap.yaml`)
+  - `.zip` 2 ไฟล์ (กรุงเทพฯ `10`, กำแพงเพชร `62`) เก็บชื่อไฟล์เป็น TIS-620 ไม่มี UTF-8 flag → bsdtar บน macOS แตกไม่ได้ → ETL แตก zip เองด้วย Python `zipfile` + decode cp874
+  - legend 2 แบบ: มาตรฐาน B <500 / G 500–1,500 / R >1,500 mg/L และภาคใต้ (80 81 92 93) B <300 / G 300–500 / O 500–1,500 / R >1,500 → `quality_class` คิดจาก TDS
+  - polygon `W` (แหล่งน้ำ / Water body) และ `NA` (ไม่มีข้อมูล) ถูกตัดทิ้ง · ชุมพรมี typo `TDS='2-10'` → ใช้ค่ากลางของสี
+  - nationwide = **11,055 polygon** (fresh 5,542 / brackish 3,652 / saline 1,861)
 - ใช้ resource list ของ CKAN (`package_show`) เป็นตัว check-for-change (`last_modified`)
 
 ### 4. ThaiWater (สสน.) ✅ (license ไม่ชัด)
@@ -105,7 +109,10 @@
   - คืน `et0_fao_evapotranspiration` มาเลย (FAO-56)
   - Free tier ~10,000 call/วัน · request ที่มี >10 ตัวแปร หรือ >2 สัปดาห์ ถูกนับเป็นหลาย call
 - **ทำไมห้ามใช้ API backfill:** 0.1° ทั้งประเทศ ≈ 4,300 cell × 20 ปี ≈ **2.2 ล้าน call ≈ 220 วัน** บน free tier
-- NASA POWER (`power.larc.nasa.gov/api/temporal/daily/point`) — สำรอง
+- **NASA POWER** (`power.larc.nasa.gov/api/temporal/daily/point`, ไม่ต้องใช้ key, public domain) — ใช้เป็นอากาศทั้งประเทศแบบฟรี (D-029) ระหว่างยังไม่มี ERA5-Land bulk
+  - probe 2026-10-10: `community=AG`, `T2M_MAX,T2M_MIN,PRECTOTCORR,RH2M,WS2M,ALLSKY_SFC_SW_DWN` (หน่วย °C, mm/day, %, m/s ที่ 2 m, MJ/m²/day) · 2016-01-01…2026-10-09 ใน request เดียว ≈ 1.8 s / 0.4 MB ต่อจุด · fill `-999` · `geometry.coordinates[2]` = ความสูง (m) · 2–3 วันล่าสุดยังเป็น fill (รังสีช้ากว่าอุณหภูมิ)
+  - ความละเอียดจริง MERRA-2 0.5°×0.625° (รังสี 1°) → จุด 0.25° ที่อยู่ติดกันอาจได้ค่าเดียวกัน
+  - ETL: `etl/sources/nasapower.py` → 854 จุดบก (ห่างจังหวัด ≤15 km) − 12 จุดชน id กับ seed มหาสารคาม · ET0 = FAO-56 Penman-Monteith (fallback Hargreaves)
 
 ### 12. SoilGrids ✅
 - REST `https://rest.isric.org/soilgrids/v2.0/properties/query` ใช้ได้ แต่ fair-use ~5 call/นาที → **ใช้ตรวจจุดเท่านั้น**
@@ -134,7 +141,7 @@
 ## Open items
 - [ ] หนังสือขอข้อมูล LDD (ชุดดิน 1:25k + ดินเค็ม) — **blocker สำหรับ confidence สูง**
 - [ ] ขอไฟล์ DGR 14 จังหวัด + เพชรบูรณ์
-- [ ] แตก `.rar` DGR มหาสารคาม ตรวจ field (EC/TDS/ความลึก/ปริมาณ) → เขียน `dgr_fieldmap.yaml`
+- [x] แตก `.rar`/`.zip` DGR 62 จังหวัด ตรวจ field → `dgr_fieldmap.yaml` (ไม่มี EC/ความลึก — D-023)
 - [ ] ยืนยัน license ThaiWater สำหรับการ cache และแสดงผล
 - [ ] สมัคร TMD API key
 - [ ] หาแหล่งความลึกชั้นเกลือหิน (รายงาน DMR / บ่อเจาะ)

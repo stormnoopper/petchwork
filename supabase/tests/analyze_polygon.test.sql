@@ -1,7 +1,7 @@
 -- public.analyze_polygon — contract AnalyzeRpcResult (packages/contracts)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(33);
 
 -- ~474 rai square straddling geology (lon 103.25) and groundwater (lat 16.05) seed boundaries
 create temp table t_straddle as
@@ -39,10 +39,26 @@ select is((select r->'data_versions'->>'dgr_groundwater' from t_straddle), 'seed
 -- error paths
 select is(public.analyze_polygon('{"type":"Polygon","coordinates":[[[105.8,17.5],[105.81,17.5],[105.81,17.51],[105.8,17.5]]]}'),
           '{"ok":false,"error":"OUTSIDE_THAILAND"}'::jsonb, 'outside Thailand → OUTSIDE_THAILAND');
+-- every province is enabled since D-029 → disable Suphan Buri inside this transaction to keep the path tested
+update ref.province_coverage set enabled = false where province_code = '72';
 select is(public.analyze_polygon('{"type":"Polygon","coordinates":[[[100.12,14.47],[100.13,14.47],[100.13,14.48],[100.12,14.48],[100.12,14.47]]]}'),
           '{"ok":false,"error":"PROVINCE_NOT_ENABLED","province_code":"72","province_name_th":"สุพรรณบุรี"}'::jsonb,
-          'Suphan Buri → PROVINCE_NOT_ENABLED with province_code + name');
+          'disabled province (Suphan Buri) → PROVINCE_NOT_ENABLED with province_code + name');
+update ref.province_coverage set enabled = true where province_code = '72';
 select is(public.analyze_polygon('{"type":"Point","coordinates":[103.25,16.05]}')->>'error', 'INVALID_POLYGON', 'point → INVALID_POLYGON');
+
+-- D-029 nationwide: outside ref.grid_cells → grid shape kept, values null, nearest weather point ≤ 50 km
+create temp table t_bkk as   -- Nong Chok, Bangkok: > 50 km from any seed weather point
+select public.analyze_polygon('{"type":"Polygon","coordinates":[[[100.850,13.850],[100.854,13.850],[100.854,13.854],[100.850,13.854],[100.850,13.850]]]}') as r;
+select is((select r->>'ok' || '/' || (r->'admin'->>'province_code') from t_bkk), 'true/10', 'Bangkok polygon → ok (all provinces enabled)');
+select ok((select r->'grid' ? 'clay_pct' and r->'grid' ? 'weather_grid_id' and r->'grid'->'weather_grid_id' = 'null'::jsonb
+                  and r->'grid'->'clay_pct' = 'null'::jsonb from t_bkk), 'no grid cell + no weather point ≤ 50 km → grid values null');
+select is((select r->'confidence'->'soil' from t_bkk), '{"level":"low","source":"fallback"}'::jsonb, 'no grid → soil confidence low / fallback');
+select is((select r->'coverage'->>'salinity_origin' from t_bkk), 'coastal_intrusion', 'Bangkok coverage = coastal_intrusion');
+create temp table t_near as  -- 0.15° east of the seed grid edge (lon 103.55) → nearest seed weather point 3818835
+select public.analyze_polygon('{"type":"Polygon","coordinates":[[[103.700,16.050],[103.704,16.050],[103.704,16.054],[103.700,16.054],[103.700,16.050]]]}') as r;
+select is((select (r->'grid'->>'weather_grid_id')::int from t_near), 3818835, 'outside grid → nearest weather point within 50 km');
+select ok((select r->>'ok' = 'true' and r->'grid'->'si_dry_season' = 'null'::jsonb from t_near), 'outside grid → si null, still ok');
 
 -- performance: < 300 ms on a ≤ 500 rai polygon (seed data)
 create temp table t_perf as select clock_timestamp() as t0;

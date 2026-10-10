@@ -25,11 +25,29 @@ default:
     depth: null                    # not present in DGR 1:100k GWAV layers
     ec: null
   drop_if_null: GWAV
-  quality_class_by_prefix:         # first letter of GWAV
+  # Nationwide inspection 2026-10-10 (62 provinces, D-029): GWAV prefixes B/G/O/R + W (water body:
+  # 'Water body' / 'แหล่งน้ำ') + NA (no data: 'NA' / 'ไม่มีการ…') → W and N polygons carry no groundwater
+  # information and are dropped. Southern sheets (80 81 92 93) use a 4-class legend
+  # B <300 / G 300–500 / O 500–1,500 / R >1,500 mg/L → quality_class is derived from TDS (same cut-offs
+  # as the standard B/G/R legend, so central/northeast results are unchanged).
+  drop_prefixes: ["W", "N"]
+  quality_class_by_prefix:         # first letter of GWAV (fallback when TDS is unknown)
     B: fresh
     G: brackish
+    O: brackish
     R: saline
+  quality_class_by_tds:            # [upper limit mg/L (exclusive), class]; null = no limit
+    - [500, fresh]
+    - [1500, brackish]
+    - [null, saline]
+  tds_by_prefix_mgl:               # TDS text missing / typo (e.g. ชุมพร R2 TDS='2-10') → class midpoint
+    B: 250
+    G: 1000
+    O: 1000
+    R: 2250
   tds_classes_mgl:                 # raw TDS string → representative mg/L
+    "<300": 150
+    "300-500": 400
     "<500": 250
     "500-1,500": 1000
     "500-1500": 1000
@@ -39,6 +57,8 @@ default:
   yield_classes_m3_hr:
     "<2": 1
     "<5": 2.5
+    "2-5": 3.5
+    ">10": 15                      # ASSUMPTION open-ended (southern legend)
     "2-10": 6
     "5-10": 7.5
     "10-20": 15
@@ -48,3 +68,6 @@ default:
 # Per-province overrides (key = 2-digit province code). Only keys that differ from `default`.
 provinces:
   "44": {}   # มหาสารคาม — verified 2026-10-10
+  # .zip (not .rar), TIS-620 entry names → dgr.extract_zip re-decodes as cp874; GWAV schema = default
+  "10": {}   # กรุงเทพฯ  — GWAV_กทม.shp 62 polygons, verified 2026-10-10
+  "62": {}   # กำแพงเพชร — GWAV_กำแพงเพชร.shp 350 polygons, verified 2026-10-10

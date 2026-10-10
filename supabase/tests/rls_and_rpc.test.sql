@@ -80,7 +80,7 @@ select throws_ok($$ select public.ensure_app_user('x@test.local', null, null, nu
 select throws_ok($$ select count(*) from app.users $$, '42501', null, 'anon has no privilege on app.users');
 
 -- misc RPCs as anon
-select is((select array_agg(province_code) from public.enabled_provinces()), array['44'], 'enabled_provinces = {44}');
+select ok((select count(*) = 77 and bool_or(province_code = '44') from public.enabled_provinces()), 'enabled_provinces = all 77 provinces (D-029)');
 select ok((select count(*) > 0 and bool_and(version = 'seed') from public.data_snapshots_latest()), 'data_snapshots_latest returns seed versions');
 select is(jsonb_array_length(public.weather_series(3818832, '2024-01-01', '2024-12-31')), 366, 'weather_series: 366 days in 2024');
 select throws_ok($$ select public.mvt_tile('bogus', 1, 0, 0) $$, '22023', null, 'mvt_tile rejects non-whitelisted layer');

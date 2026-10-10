@@ -29,7 +29,7 @@ etl/.venv/bin/python etl/run.py --rollback dmr                # ย้อนเ�
 | flag | ความหมาย |
 |---|---|
 | `--tier daily\|quarterly\|semiannual\|static\|manual` | เลือกแหล่งตาม `meta.data_sources.refresh_tier` (แก้ใน DB ได้โดยไม่ต้องแก้โค้ด) |
-| `--source a,b` | code หรือ alias: `dmr gistda irrigation admin dgr openmeteo era5land dem soilgrids thaiwater ldd grid cmip6 jrc sentinel2 chirps` |
+| `--source a,b` | code หรือ alias: `dmr gistda irrigation admin dgr openmeteo era5land nasa dem soilgrids thaiwater ldd grid cmip6 jrc sentinel2 chirps` |
 | `--dry-run` | หยุดหลัง validate — **ไม่แตะ ref/obs และ meta.data_sources** (เขียนแค่ `staging.*` + `meta.ingest_jobs`) |
 | `--bbox w,s,e,n` / `--nationwide` | ขอบเขต (default = pilot มหาสารคาม `102.85,15.6,103.55,16.6`) |
 | `--force` | ข้ามการเทียบ checksum (`skipped: unchanged`) |
@@ -71,7 +71,8 @@ Exit code 0 เมื่อทุกแหล่งเป็น `success` / `ski
 | `era5_land` | era5land.py | obs.weather_daily | pilot: archive API `era5_seamless` (budget guard) · nationwide: ออกแบบให้อ่าน S3 `.om` (ยังไม่ทำ, คืน skipped) |
 | `thaiwater` | thaiwater.py | obs.reservoir_storage, obs.water_quality (+ staging.thaiwater_rain_24h) | ต้องแสดง **"คลังข้อมูลน้ำแห่งชาติ (สสน.)"** |
 | `ldd_soil`, `ldd_saline` | ldd.py + ldd_fieldmap.yaml | ref.soil_units, ref.saline_soil_zones | placeholder — ไม่มีไฟล์ = `skipped: no_source` |
-| `sentinel2`, `chirps`, `nex_gddp_cmip6`, `jrc_gsw`, `hdx_codab`, `gistda_rice_calendar`, `tmd`, `nasa_power` | phase2.py | – | stub `skipped: not_implemented` (docstring = TODO) |
+| `nasa_power` | nasapower.py | ref.weather_grid + obs.weather_daily | ทั้งประเทศฟรี (D-029): จุด 0.25° บนบก 854 จุด (−12 ที่ชน seed MSK), 2016 → เมื่อวาน, ET0 FAO-56 PM · ≤4 concurrent, เว้น 1.5 s, cache `etl/.raw/nasa_power/cache/` (resume) · MERGE ไม่ swap |
+| `sentinel2`, `chirps`, `nex_gddp_cmip6`, `jrc_gsw`, `hdx_codab`, `gistda_rice_calendar`, `tmd` | phase2.py | – | stub `skipped: not_implemented` (docstring = TODO) |
 
 ### เพิ่มแหล่งใหม่
 สร้าง class สืบจาก `sources.base.Source` → กำหนด `code` (ต้องมีใน `meta.data_sources`), `targets` (`Target(table, mode, required, ranges, coverage_flag, …)`) และ 3 เมธอด `check / fetch / produce` → ลงทะเบียนใน `sources/__init__.py`
@@ -98,7 +99,24 @@ Exit code 0 เมื่อทุกแหล่งเป็น `success` / `ski
 Secrets: `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (เปิด `--upload-raw`), `ETL_ALERT_WEBHOOK`, `GEE_SERVICE_ACCOUNT_JSON`, `THAIWATER_API_KEY`, `TMD_API_KEY`
 Repo variable `ETL_SCOPE` = `pilot` (default) | `nationwide`
 
-Env เสริม: `ETL_RAW_DIR` (ที่เก็บไฟล์ดิบ), `ETL_OPENMETEO_BUDGET` (default 8000 call/วัน), `ETL_OPENMETEO_PAUSE_S` (default 30)
+Env เสริม: `ETL_RAW_DIR` (ที่เก็บไฟล์ดิบ), `ETL_OPENMETEO_BUDGET` (default 8000 call/วัน), `ETL_OPENMETEO_PAUSE_S` (default 30), `ETL_NASAPOWER_WORKERS` (≤4), `ETL_NASAPOWER_MIN_INTERVAL_S` (1.5), `ETL_NASAPOWER_LAND_KM` (15)
+
+## โหลดข้อมูลจริงทั้งประเทศใหม่หลัง `supabase db reset` (dev local)
+
+`supabase db reset` คืน DB เป็น seed (ข้อมูลสมมติมหาสารคาม + ขอบเขต 77 จังหวัดแบบ simplify, ทุกจังหวัด enabled — D-029)
+ลำดับนี้โหลดข้อมูลจริงกลับเข้า dev DB (ทุกตัวไม่มี `--dry-run`):
+
+```bash
+etl/.venv/bin/python etl/run.py --source gistda --nationwide     # admin 77 จังหวัด + 928 อำเภอ, ชลประทาน 614   ~35 s
+etl/.venv/bin/python etl/run.py --source dmr --nationwide        # หน่วยหิน 7,093 polygon                       ~20 s
+etl/.venv/bin/python etl/run.py --source dgr --nationwide        # น้ำบาดาล 62 จังหวัด 11,055 polygon             ~80 s (โหลด 140 MB ครั้งแรก) / ~20 s (มีไฟล์แล้ว)
+etl/.venv/bin/python etl/run.py --source nasa_power --nationwide # อากาศ 842 จุด × 2016→เมื่อวาน (~3.3M แถว)    ~25 นาที ครั้งแรก / ~3 นาที ถ้ามี cache
+```
+
+- ตำบล (subdistrict) ยังเป็น seed สมมติ 2 ตำบลในมหาสารคาม (HDX COD-AB ยังเป็น stub) → `admin.subdistrict_*` = null นอกนั้น
+- `--source nasa_power` resume ได้: raw JSON ต่อจุดเก็บที่ `etl/.raw/nasa_power/cache/` (ไม่ถูกลบตอน reset) → หลัง reset รันซ้ำจะไม่ยิง API ใหม่ (ถ้าวันสิ้นสุดเดิม) · ถ้าเจอ HTTP 429 ซ้ำ ๆ ตัวโหลดหยุดยิง โหลดเฉพาะจุดที่ได้แล้ว → รอ ~2 นาทีแล้วรันคำสั่งเดิมอีกครั้ง (`skipped: already_loaded` = ครบแล้ว)
+- pgTAP (`supabase test db`) ออกแบบให้ผ่านบน seed — หลังโหลดข้อมูลจริงเทสต์ที่อิง geometry seed อาจไม่ผ่าน (ตามคาด) → CI ใช้ reset + test เท่านั้น
+- แปลงที่บันทึกไว้ใน `app.fields` ถูกลบตอน reset (ยกเว้น demo)
 
 ## เทสต์
 

@@ -13,6 +13,7 @@ import json
 import logging
 import shutil
 import subprocess
+import zipfile
 from pathlib import Path
 
 import psycopg
@@ -47,15 +48,48 @@ def extractor() -> list[str] | None:
     return None
 
 
+def _zip_name(info: zipfile.ZipInfo) -> str:
+    """Entry name; DGR .zip files (10 กรุงเทพ, 62 กำแพงเพชร) store TIS-620 names without the UTF-8 flag,
+    which zipfile decodes as cp437 and bsdtar refuses on macOS → re-decode as cp874 (D-029)."""
+    if info.flag_bits & 0x800:
+        return info.filename
+    raw = info.filename.encode("cp437")
+    for enc in ("utf-8", "cp874"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("cp874", errors="replace")
+
+
+def extract_zip(archive: Path, dest: Path) -> None:
+    root = dest.resolve()
+    with zipfile.ZipFile(archive) as zf:
+        for info in zf.infolist():
+            name = _zip_name(info)
+            target = (dest / name).resolve()
+            if not target.is_relative_to(root):
+                raise RuntimeError(f"unsafe archive entry: {name}")
+            if info.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with zf.open(info) as src, open(target, "wb") as out:
+                shutil.copyfileobj(src, out)
+
+
 def extract(archive: Path, dest: Path) -> Path:
-    cmd = extractor()
-    if not cmd:
-        raise RuntimeError("no archive tool (install libarchive-tools / unar / p7zip)")
     if dest.exists():
         shutil.rmtree(dest)
     dest.mkdir(parents=True)
-    argv = [c.replace("{a}", str(archive)).replace("{d}", str(dest)) for c in cmd]
-    subprocess.run(argv, check=True, capture_output=True, timeout=600)
+    if archive.suffix.lower() == ".zip":
+        extract_zip(archive, dest)
+    else:
+        cmd = extractor()
+        if not cmd:
+            raise RuntimeError("no archive tool (install libarchive-tools / unar / p7zip)")
+        argv = [c.replace("{a}", str(archive)).replace("{d}", str(dest)) for c in cmd]
+        subprocess.run(argv, check=True, capture_output=True, timeout=600)
     root = dest.resolve()
     for p in dest.rglob("*"):  # defence in depth against path traversal
         if not p.resolve().is_relative_to(root) or p.is_symlink():
@@ -159,15 +193,24 @@ class DgrGroundwater(Source):
                     if gdf.crs is None:
                         raise RuntimeError(f"{shp.name}: missing .prj")
                     gdf = gdf.to_crs(4326)  # PROJ datum shift (Indian 1975 → WGS84) done here, not in PostGIS
-                    unknown = 0
+                    unknown = dropped = 0
                     for _, r in gdf.iterrows():
                         cls = r.get(f["class"])
                         if r.geometry is None or cls is None or (isinstance(cls, float) and cls != cls):
                             continue
                         cls = str(cls).strip()
-                        qc = cfg["quality_class_by_prefix"].get(cls[:1].upper())
+                        prefix = cls[:1].upper()
+                        if prefix in (cfg.get("drop_prefixes") or ()):  # water body / no-data polygons
+                            dropped += 1
+                            continue
                         tds_raw = str(r.get(f["tds"]) or "").strip()
                         tds = cfg["tds_classes_mgl"].get(tds_raw)
+                        if tds is None:  # TDS text missing / typo → representative value of the colour class
+                            tds = (cfg.get("tds_by_prefix_mgl") or {}).get(prefix)
+                        qc = cfg["quality_class_by_prefix"].get(prefix)
+                        if tds is not None and cfg.get("quality_class_by_tds"):
+                            # legend-independent: southern sheets use B<300/G 300–500/O 500–1,500/R>1,500
+                            qc = next(c for lim, c in cfg["quality_class_by_tds"] if lim is None or tds < lim)
                         yld_raw = str(r.get(f["yield"]) or "").strip()
                         yld = cfg["yield_classes_m3_hr"].get(yld_raw)
                         if tds is None or qc is None:
@@ -175,7 +218,7 @@ class DgrGroundwater(Source):
                         ec = round(tds / cfg["ec_from_tds_factor"], 3) if tds is not None else None
                         depth = r.get(f["depth"]) if f.get("depth") else None
                         yield (qc, ec, tds, depth, yld, province, r.geometry.wkb)
-                    stats[shp.name] = {"features": len(gdf), "unmapped": unknown}
+                    stats[shp.name] = {"features": len(gdf), "unmapped": unknown, "dropped": dropped}
             log.info("  DGR layers: %s", stats)
 
         return {"groundwater_zones": Rows(

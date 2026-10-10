@@ -4,6 +4,7 @@
 --
 -- Contents
 --   * 3 rough provinces: 44 มหาสารคาม (enabled), 40 ขอนแก่น, 72 สุพรรณบุรี (not enabled)
+--     (seed_provinces.sql then loads all 77 real boundaries and enables every province — D-028/D-029)
 --     + 2 districts / 2 subdistricts inside 44
 --   * ref.soil_units / ref.saline_soil_zones intentionally EMPTY (LDD placeholder, D-002)
 --   * geology: KTms (lon >= 103.25) | KTpt (lon < 103.25)       → boundary at lon 103.25
@@ -34,7 +35,7 @@ insert into meta.data_sources (code, name_th, url, license, attribution_th, scal
   ('hdx_codab',      'ขอบเขตตำบล HDX COD-AB', 'https://data.humdata.org/dataset/cod-ab-tha', 'CC BY-IGO', 'OCHA HDX', null, '{ref.admin_boundaries}', 'semiannual', 'ok'),
   ('era5_land',      'ERA5-Land reanalysis', 'https://openmeteo.s3.amazonaws.com/?list-type=2&prefix=data/copernicus_era5_land/', 'Copernicus licence', 'Copernicus Climate Change Service', '0.1°', '{obs.weather_daily}', 'static', 'ok'),
   ('open_meteo',     'Open-Meteo API', 'https://archive-api.open-meteo.com/v1/archive', 'CC BY 4.0', 'Open-Meteo.com', null, '{obs.weather_daily}', 'daily', 'ok'),
-  ('nasa_power',     'NASA POWER', 'https://power.larc.nasa.gov/api/temporal/daily/point', 'public domain', 'NASA POWER', null, '{}', 'static', 'ok'),
+  ('nasa_power',     'NASA POWER daily (community AG)', 'https://power.larc.nasa.gov/api/temporal/daily/point', 'public domain', 'NASA POWER Project', '0.5°×0.625° (sampled at 0.25°)', '{ref.weather_grid,obs.weather_daily}', 'static', 'ok'),
   ('soilgrids',      'SoilGrids 250m', 'https://files.isric.org/soilgrids/latest/data/', 'CC BY 4.0', 'ISRIC SoilGrids', '250 m', '{ref.grid_cells}', 'semiannual', 'ok'),
   ('chirps',         'CHIRPS 2.0', 'https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/tifs/p05/', 'public domain', 'UCSB CHC', '0.05°', '{ref.grid_cells}', 'quarterly', 'ok'),
   ('jrc_gsw',        'JRC Global Surface Water', 'https://storage.googleapis.com/global-surface-water/downloads2021/', 'CC BY 4.0', 'EC JRC / Google', '30 m', '{ref.water_bodies}', 'semiannual', 'ok'),

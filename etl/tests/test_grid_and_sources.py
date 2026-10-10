@@ -69,7 +69,10 @@ def test_dgr_fieldmap_maps_all_known_classes():
         assert raw in cfg["tds_classes_mgl"]
     for raw in ("<2", "2-10", "10-20", ">20", "5-10", "<5"):
         assert raw in cfg["yield_classes_m3_hr"]
-    assert cfg["quality_class_by_prefix"] == {"B": "fresh", "G": "brackish", "R": "saline"}
+    assert cfg["quality_class_by_prefix"] == {"B": "fresh", "G": "brackish", "O": "brackish", "R": "saline"}
+    for raw in ("<300", "300-500"):  # southern 4-class legend (D-029)
+        assert raw in cfg["tds_classes_mgl"]
+    assert set(cfg["drop_prefixes"]) == {"W", "N"}
     ec = cfg["tds_classes_mgl"][">1,500"] / cfg["ec_from_tds_factor"]
     assert 0 < ec < 50
 
@@ -119,3 +122,38 @@ def test_ldd_manual_file_is_mapped(tmp_path):
     assert chk.skip_reason is None and chk.token
     rows = list(src.produce(ctx, src.fetch(ctx))["saline_soil_zones"].rows)
     assert rows[0][:3] == ("high", 12.5, "inland_rock_salt")
+
+
+def test_nasapower_lattice_ids_follow_d012_and_do_not_collide():
+    from lib.grid import weather_grid_id
+    from sources.nasapower import lattice
+
+    pts = lattice((97.3, 5.6, 105.7, 20.5))
+    assert len(pts) == len({p[0] for p in pts})
+    for wid, lat, lon in pts[:: 97]:
+        assert wid == weather_grid_id(lat, lon)
+        assert (lat * 4) == int(lat * 4) and (lon * 4) == int(lon * 4)
+
+
+def test_nasapower_et0_fao56_example_18():
+    import math
+
+    from sources.nasapower import et0_hargreaves, et0_penman_monteith
+
+    # FAO-56 example 18 (Uccle 6 July): ET0 = 3.9 mm/day
+    es = (0.6108 * math.exp(17.27 * 21.5 / 258.8) + 0.6108 * math.exp(17.27 * 12.3 / 249.6)) / 2
+    assert abs(et0_penman_monteith(50.8, 100, 187, 12.3, 21.5, 1.409 / es * 100, 2.078, 22.07) - 3.9) < 0.1
+    # missing radiation → Hargreaves
+    assert et0_penman_monteith(16.0, 150, 100, 24, 36, 60, 2, None) == et0_hargreaves(16.0, 100, 24, 36)
+
+
+def test_nasapower_parse_drops_fill_days():
+    from sources.nasapower import parse_point
+
+    payload = {"geometry": {"coordinates": [103.25, 16.0, 169.5]}, "properties": {"parameter": {
+        "T2M_MAX": {"20240101": 31.0, "20240102": -999.0}, "T2M_MIN": {"20240101": 18.0, "20240102": 19.0},
+        "PRECTOTCORR": {"20240101": 0.0, "20240102": 1.0}, "RH2M": {"20240101": 60.0, "20240102": 70.0},
+        "WS2M": {"20240101": 2.0, "20240102": 2.0}, "ALLSKY_SFC_SW_DWN": {"20240101": -999.0, "20240102": 18.0}}}}
+    rows = parse_point(payload, 42, 16.0)
+    assert len(rows) == 1 and rows[0][0] == 42 and rows[0][7] is None and rows[0][8] > 0
+    assert rows[0][-1] == "nasa_power"

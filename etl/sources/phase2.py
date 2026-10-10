@@ -76,11 +76,3 @@ class Tmd(StubSource):
     code = "tmd"
     tier = "daily"
     reason = "not_implemented: TMD key pending (bias-correction only)"
-
-
-class NasaPower(StubSource):
-    """Backup weather source (power.larc.nasa.gov) — used only if Open-Meteo is down."""
-
-    code = "nasa_power"
-    tier = "static"
-    reason = "not_implemented: backup source"

@@ -12,8 +12,8 @@ def registry() -> dict[str, type[Source]]:
     from sources.gistda import GistdaAdmin, GistdaIrrigation
     from sources.ldd import LddSaline, LddSoil
     from sources.openmeteo import OpenMeteoDaily
-    from sources.phase2 import (Chirps, GistdaRiceCalendar, HdxCodab, JrcSurfaceWater, NasaPower, NexGddpCmip6,
-                                Sentinel2, Tmd)
+    from sources.nasapower import NasaPower
+    from sources.phase2 import Chirps, GistdaRiceCalendar, HdxCodab, JrcSurfaceWater, NexGddpCmip6, Sentinel2, Tmd
     from sources.soilgrids import SoilGrids
     from sources.thaiwater import ThaiWater
 
@@ -32,6 +32,8 @@ ALIASES: dict[str, list[str]] = {
     "openmeteo": ["open_meteo"],
     "era5land": ["era5_land"],
     "era5": ["era5_land"],
+    "nasa": ["nasa_power"],
+    "nasapower": ["nasa_power"],
     "dem": ["cop_dem"],
     "ldd": ["ldd_soil", "ldd_saline"],
     "cmip6": ["nex_gddp_cmip6"],
