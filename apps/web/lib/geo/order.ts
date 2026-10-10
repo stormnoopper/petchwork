@@ -1,4 +1,4 @@
-import type { LatLng } from '@rice/contracts';
+import { LatLng as LatLngSchema, MAX_VERTICES_PHASE1, type LatLng } from '@rice/contracts';
 
 /** Arithmetic mean of vertices — good enough as a pivot / label anchor for a field-sized quad. */
 export function vertexCentroid(vertices: readonly LatLng[]): LatLng {
@@ -45,4 +45,22 @@ export function signedPlanarArea(vertices: readonly LatLng[]): number {
     s += a.lng * b.lat - b.lng * a.lat;
   }
   return s / 2;
+}
+
+/**
+ * Sanitise restored vertices (e.g. post-login draft): keep valid LatLng only, at most
+ * `max`, CCW-sorted once complete — same invariant FieldDrawer keeps while drawing.
+ */
+export function prepareInitialVertices(
+  input: readonly unknown[] | null | undefined,
+  max = MAX_VERTICES_PHASE1,
+): LatLng[] {
+  if (!input?.length) return [];
+  const pts: LatLng[] = [];
+  for (const p of input) {
+    const r = LatLngSchema.safeParse(p);
+    if (r.success) pts.push({ lat: r.data.lat, lng: r.data.lng });
+    if (pts.length === max) break;
+  }
+  return pts.length === max ? sortCounterClockwise(pts) : pts;
 }

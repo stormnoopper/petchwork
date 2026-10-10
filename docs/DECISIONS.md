@@ -52,3 +52,6 @@
 
 ## D-017 · 2026-10-10 · Orchestrator
 **Contract v0.3** — เพิ่ม `FieldResults`, `ResultSeasonRow`, `Field.is_demo`, `DEMO_FIELD_ID`
+
+## D-018 · 2026-10-10 · map-ui
+**LayerToggle** — deck.gl `GoogleMapsOverlay({interleaved:false})` + `MVTLayer` โหลดด้วย `import()` ตอนเปิดชั้นแรกเท่านั้น (~270 KiB gzip) · ปิด loaders.gl worker (เลี่ยงโหลดจาก CDN) · `pickable:false` ทุกชั้นใน Phase 1 · ชั้น LDD แสดงเมื่อ `profile.coverage.has_ldd_*` เป็น true เท่านั้น · `FieldDrawer` รับ `initialVertices` (อ่านครั้งเดียวตอน mount) สำหรับกู้ draft
