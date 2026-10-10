@@ -25,6 +25,18 @@ export function appUserIdFromGoogleSub(sub: string): string {
   return uuidV5(`google:${sub}`, APP_USER_NAMESPACE);
 }
 
+/** Canonical form of an email used for lookup and ids (trimmed, lower-case). */
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/** App user id for an email/password account (D-032): uuidv5('email:<normalized email>'). */
+export function appUserIdFromEmail(email: string): string {
+  const e = normalizeEmail(email);
+  if (!e) throw new Error('appUserIdFromEmail: empty email');
+  return uuidV5(`email:${e}`, APP_USER_NAMESPACE);
+}
+
 /**
  * Dev-only login bypass (AUTH_DEV_BYPASS=1, never in production). Separate name prefix so the
  * synthetic user can never collide with a real Google account id.

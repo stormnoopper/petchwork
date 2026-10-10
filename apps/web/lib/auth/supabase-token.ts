@@ -27,3 +27,19 @@ export async function mintSupabaseToken(
     .setExpirationTime(nowSec + Math.min(ttlSec, SUPABASE_TOKEN_TTL_S))
     .sign(new TextEncoder().encode(secret));
 }
+
+/**
+ * Short-lived `service_role` JWT for the credential RPCs (auth_register / auth_credentials /
+ * auth_record_login), which no browser-reachable role may call. Server-only, never leaves the process.
+ */
+export async function mintServiceToken(
+  secret: string,
+  nowSec: number = Math.floor(Date.now() / 1000),
+): Promise<string> {
+  if (!secret) throw new Error('SUPABASE_JWT_SECRET is not set');
+  return new SignJWT({ role: 'service_role' })
+    .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+    .setIssuedAt(nowSec)
+    .setExpirationTime(nowSec + 60)
+    .sign(new TextEncoder().encode(secret));
+}

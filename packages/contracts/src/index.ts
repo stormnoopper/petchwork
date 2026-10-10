@@ -514,3 +514,28 @@ export const RawDataRows = z.object({
   rows: z.array(z.record(z.string(), z.unknown())),
 });
 export type RawDataRows = z.infer<typeof RawDataRows>;
+
+// ---------------------------------------------------------------- email/password auth (D-032)
+
+export const PASSWORD_MIN = 8;
+export const PASSWORD_MAX = 128;
+
+export const LoginInput = z.object({
+  email: z.string().trim().max(254).pipe(z.email()),
+  password: z.string().min(1).max(PASSWORD_MAX),
+});
+export type LoginInput = z.infer<typeof LoginInput>;
+
+export const RegisterInput = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    email: z.string().trim().max(254).pipe(z.email()),
+    password: z.string().min(PASSWORD_MIN).max(PASSWORD_MAX),
+    confirmPassword: z.string(),
+    acceptTerms: z.literal(true),
+  })
+  .refine((v) => v.password === v.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'passwords do not match',
+  });
+export type RegisterInput = z.infer<typeof RegisterInput>;

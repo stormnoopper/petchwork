@@ -1,24 +1,26 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { signIn } from '@/auth';
+import { googleEnabled, signIn } from '@/auth';
+import { redirect } from 'next/navigation';
+import { LoginForm } from '@/components/auth/LoginForm';
+import { getUser } from '@/lib/api/auth';
 import { isDevBypassEnabled } from '@/lib/auth/identity';
 import { safeNext } from '@/lib/auth/safe-next';
 import t from '@/messages/th.auth.json';
+import { AuthShell, Divider, first, type Param } from './shell';
 import { GoogleButton } from './GoogleButton';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: t.login.metaTitle, robots: { index: false } };
 
-type Param = string | string[] | undefined;
 type Props = { searchParams: Promise<{ next?: Param; callbackUrl?: Param; error?: Param }> };
 
-const first = (v: Param) => (Array.isArray(v) ? v[0] : v);
-
-/** Auth.js error codes (`?error=`) → Thai message. */
+/** Auth.js error codes (`?error=`, Google / dev flows) → Thai message. */
 function errorText(code: string | undefined): string | null {
   if (!code) return null;
   if (code === 'AccessDenied') return t.login.errors.accessDenied;
   if (code === 'Configuration') return t.login.errors.configuration;
+  if (code === 'CredentialsSignin') return t.login.errors.invalid;
   return t.login.errors.generic;
 }
 
@@ -26,8 +28,8 @@ export default async function LoginPage({ searchParams }: Props) {
   const sp = await searchParams;
   const next = safeNext(first(sp.next) ?? first(sp.callbackUrl));
   const error = errorText(first(sp.error));
-  const configured = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
   const devBypass = isDevBypassEnabled();
+  if (await getUser()) redirect(next);
 
   async function signInWithGoogle() {
     'use server';
@@ -41,52 +43,46 @@ export default async function LoginPage({ searchParams }: Props) {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-10">
-      <div className="flex flex-col gap-6">
-        <div className="space-y-2">
-          <h1 className="text-2xl leading-snug font-semibold">{t.login.title}</h1>
-          <p className="text-base text-muted-foreground">{t.login.subtitle}</p>
-        </div>
+    <AuthShell title={t.login.title} subtitle={t.login.subtitle} next={next}>
+      {error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
 
-        {configured ? (
+      <LoginForm next={next} />
+
+      <p className="text-base">
+        {t.login.noAccount}{' '}
+        <Link
+          href={`/register?next=${encodeURIComponent(next)}`}
+          className="font-medium text-primary underline-offset-4 hover:underline"
+        >
+          {t.login.registerLink}
+        </Link>
+      </p>
+
+      {googleEnabled || devBypass ? <Divider label={t.login.or} /> : null}
+
+      {googleEnabled ? (
+        <>
           <form action={signInWithGoogle}>
             <GoogleButton label={t.login.google} />
           </form>
-        ) : (
-          <div role="status" className="rounded-lg border border-dashed bg-muted/40 p-4 text-sm">
-            <p className="font-medium">{t.login.devNoticeTitle}</p>
-            <p className="text-muted-foreground">{t.login.devNoticeBody}</p>
-          </div>
-        )}
+          <p className="text-sm text-muted-foreground">{t.login.googleNote}</p>
+        </>
+      ) : null}
 
-        {devBypass ? (
-          <form action={signInDevBypass}>
-            <button
-              type="submit"
-              className="flex h-12 w-full items-center justify-center rounded-full border-2 border-dashed border-amber-600 bg-amber-50 px-4 text-base font-medium text-amber-900 hover:bg-amber-100"
-            >
-              {t.login.devBypass}
-            </button>
-          </form>
-        ) : null}
-
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
-
-        <p className="text-sm text-muted-foreground">{t.login.googleNote}</p>
-
-        <div className="flex flex-col gap-2 text-sm">
-          <Link href="/privacy" className="text-primary underline-offset-4 hover:underline">
-            {t.login.privacyLink}
-          </Link>
-          <Link href={next} className="text-muted-foreground underline-offset-4 hover:underline">
-            {t.login.backToMap}
-          </Link>
-        </div>
-      </div>
-    </main>
+      {devBypass ? (
+        <form action={signInDevBypass}>
+          <button
+            type="submit"
+            className="flex h-12 w-full items-center justify-center rounded-full border-2 border-dashed border-amber-600 bg-amber-50 px-4 text-base font-medium text-amber-900 hover:bg-amber-100"
+          >
+            {t.login.devBypass}
+          </button>
+        </form>
+      ) : null}
+    </AuthShell>
   );
 }
