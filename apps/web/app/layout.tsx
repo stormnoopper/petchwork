@@ -12,7 +12,7 @@ const plexThai = IBM_Plex_Sans_Thai({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
-  title: { default: 'นาของเรา — ประเมินน้ำ ข้าว และดินเค็ม', template: '%s · นาของเรา' },
+  title: { default: 'BoengNa เบิ่งนา — ประเมินน้ำ ข้าว และดินเค็ม', template: '%s · BoengNa' },
   description:
     'แตะ 4 มุมแปลงนาบนแผนที่ รู้ล่วงหน้าว่านาของคุณจะได้น้ำ ได้ข้าว ปล่อยก๊าซ และเค็มแค่ไหน ฟรี ไม่ต้องสมัคร',
 };

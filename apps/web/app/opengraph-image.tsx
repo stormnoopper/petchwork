@@ -19,7 +19,7 @@ const BRAND_TH = th.marketing.brand;
 const SUB_TH = th.marketing.brandTagline;
 
 const TITLE_EN = 'Know your rice field’s water, yield and salinity in advance';
-const BRAND_EN = 'Thai Rice Digital Twin';
+const BRAND_EN = 'BoengNa';
 const SUB_EN = 'Free field assessment · Pilot: Maha Sarakham';
 
 async function loadThaiFont(text: string): Promise<ArrayBuffer | null> {
