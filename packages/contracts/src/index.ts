@@ -321,14 +321,58 @@ export const Field = z.object({
   province_code: z.string().nullable(),
   district_code: z.string().nullable(),
   subdistrict_code: z.string().nullable(),
+  is_demo: z.boolean(),
   created_at: z.string(),
 });
 export type Field = z.infer<typeof Field>;
+
+export const DEMO_FIELD_ID = '00000000-0000-0000-0000-000000000001';
 
 export const ScenarioId = z.enum(['baseline', 'awd', 'salt_tolerant', 'farm_pond', 'bund_trees']);
 export type ScenarioId = z.infer<typeof ScenarioId>;
 
 export const RunStatus = z.enum(['queued', 'running', 'done', 'failed']);
+
+/** One row of sim.results_season (snake_case, as stored). */
+export const ResultSeasonRow = z.object({
+  year: z.number().int(),
+  season: z.string(),
+  water_avail_mm: z.number().nullable(),
+  irrigation_need_mm: z.number().nullable(),
+  deficit_days: z.number().int().nullable(),
+  yield_p10: z.number().nullable(),
+  yield_p50: z.number().nullable(),
+  yield_p90: z.number().nullable(),
+  ch4_kg_ha: z.number().nullable(),
+  n2o_kg_ha: z.number().nullable(),
+  co2e_t_ha: z.number().nullable(),
+  ece_p10: z.number().nullable(),
+  ece_p50: z.number().nullable(),
+  ece_p90: z.number().nullable(),
+  salinity_class: z.string().nullable(),
+});
+export type ResultSeasonRow = z.infer<typeof ResultSeasonRow>;
+
+/** Result of `rpc('field_results')` — owner or demo field only. */
+export const FieldResults = z.object({
+  field_id: z.uuid(),
+  profile: FieldProfile.nullable(),
+  computed_at: z.string().nullable(),
+  runs: z.array(
+    z.object({
+      run_id: z.uuid(),
+      scenario_id: z.string(),
+      status: RunStatus,
+      model_version: z.string(),
+      is_stale: z.boolean(),
+      run_at: z.string(),
+      finished_at: z.string().nullable(),
+      error: z.string().nullable(),
+      seasons: z.array(ResultSeasonRow),
+    }),
+  ),
+});
+export type FieldResults = z.infer<typeof FieldResults>;
 
 // ---------------------------------------------------------------- RPC names & signatures
 

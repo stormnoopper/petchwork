@@ -31,3 +31,24 @@
 
 ## D-010 · 2026-10-10 · Orchestrator
 **Contract v0.2** — `DEFAULT_PRACTICES.waterRegime` เปลี่ยนเป็น `'rainfed'` (เดิมขัดกับ waterSource rainfed) · เพิ่ม `grid.river_ec_dry_dsm` (optional, nullable) สำหรับ coastal_intrusion · ETL ต้องเก็บ `si_dry_season` = sqrt(Blue×Red) ของ S2 reflectance 0–1
+
+## D-011 · 2026-10-10 · db-architect
+**Supabase local ใช้ port 554xx** (API 55421, DB 55422, Studio 55423) เพราะเครื่องมีโปรเจกต์อื่นใช้ 543xx · ไม่มี `psql` บน host ใช้ `docker exec -i supabase_db_petchwork psql -U postgres`
+
+## D-012 · 2026-10-10 · db-architect
+**Grid id คำนวณจากพิกัด** — `grid_cells.id = floor((lat_min+90)*100)*36000 + floor((lon_min+180)*100)` · `weather_grid.id = floor((lat+90)*10)*3600 + floor((lon+180)*10)` · ETL ต้องใช้สูตรเดียวกัน
+
+## D-013 · 2026-10-10 · db-architect
+**analyze_polygon** — ค่า `grid` เป็นค่าเฉลี่ยถ่วงพื้นที่ · `plant_doy_*` / `weather_grid_id` จาก cell ที่ทับมากที่สุด · หาจังหวัดด้วย `ST_PointOnSurface` · ปฏิเสธ polygon > 50 km² ด้วย `INVALID_POLYGON` · groundwater confidence `{medium,'DGR 1:100k'}` / `{low,'fallback'}` · `weather_series` คำนวณ ET0 ด้วย Hargreaves ถ้า null และคืน jsonb array ก้อนเดียว (เลี่ยง PostgREST max_rows 1000)
+
+## D-014 · 2026-10-10 · db-architect
+**MVT ผ่าน PostgREST media type** — `mvt_tile` คืน domain `"application/vnd.mapbox-vector-tile"` · route tiles ต้องยิง `/rest/v1/rpc/mvt_tile` พร้อม `Accept: application/vnd.mapbox-vector-tile`
+
+## D-015 · 2026-10-10 · db-architect
+**Demo field** = `app.fields.is_demo` เจ้าของเป็น system user uuid คงที่ · trigger บน `app.fields` เติม admin codes, upsert `sim.field_profile`, mark runs `is_stale` เมื่อ geometry เปลี่ยน → `/api/fields` POST insert ด้วย client ของผู้ใช้ได้เลย ไม่ต้อง service role · `input_hash` คำนวณฝั่ง DB ใน `enqueue_twin_run` (ไม่ต้องตรงกับ TS)
+
+## D-016 · 2026-10-10 · db-architect
+**meta.data_sources** แยก `ldd_soil` / `ldd_saline`, เพิ่ม `sentinel2` และ tier `manual` · seed มีแค่ 3 จังหวัด (44 enabled, 40, 72) → polygon จังหวัดอื่นได้ `OUTSIDE_THAILAND` จนกว่า ETL โหลดครบ 77 จังหวัด
+
+## D-017 · 2026-10-10 · Orchestrator
+**Contract v0.3** — เพิ่ม `FieldResults`, `ResultSeasonRow`, `Field.is_demo`, `DEMO_FIELD_ID`
