@@ -16,3 +16,9 @@
 
 ## D-005 · 2026-10-10 · Orchestrator
 **Seed ข้อมูลพัฒนา (task 1.3) เป็น polygon สมมติ** ในมหาสารคาม รวมถึงขอบเขตจังหวัดแบบหยาบ (bbox) — ETL จริง (1.9) จะ swap ทับ · seed ตั้ง `data_snapshots.version = 'seed'`
+
+## D-006 · 2026-10-10 · frontend-ui
+**OG image ใช้ IBM Plex Sans Thai subset จาก Google Fonts ตอน build** — ถ้าดึงไม่ได้ fallback เป็นการ์ดภาษาอังกฤษ (build ไม่พัง)
+
+## D-007 · 2026-10-10 · frontend-ui
+**"ตัวอย่างรายงาน" บน Landing เป็น HTML mock + inline SVG** แทนภาพหน้าจอ · ตัวเลขในการ์ด 4 ด้านเป็นค่าตัวอย่าง ติดป้าย "ตัวอย่าง" · ป้าย "แปลงของฉัน" ใน header รอ client island ตอนทำ auth (1.8) เพื่อให้ landing ยัง static
