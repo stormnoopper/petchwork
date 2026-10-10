@@ -19,12 +19,6 @@ import {
   WheatIcon,
   MountainIcon,
 } from 'lucide-react';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -291,21 +285,14 @@ export default async function LandingPage() {
           ))}
         </ul>
         <p className="mt-6 text-base text-muted-foreground">{t.data.lddNote}</p>
+        <Link
+          href="/data"
+          className={cn(buttonVariants({ variant: 'outline' }), 'mt-4 h-11 px-4 text-base')}
+        >
+          {th.rawData.viewAll}
+        </Link>
       </Section>
 
-      {/* FAQ */}
-      <Section id="faq" title={t.faq.title}>
-        <Accordion className="max-w-3xl rounded-xl border bg-card px-4">
-          {t.faq.items.map((f) => (
-            <AccordionItem key={f.q} value={f.q}>
-              <AccordionTrigger className="min-h-14 items-center py-3 text-base font-semibold">
-                {f.q}
-              </AccordionTrigger>
-              <AccordionContent className="text-base text-muted-foreground">{f.a}</AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </Section>
     </>
   );
 }

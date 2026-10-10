@@ -393,6 +393,10 @@ export const RPC = {
   dataSnapshotsLatest: 'data_snapshots_latest',
   /** (p_email, p_name, p_image, p_provider_account_id) -> app.users row; uses auth.uid() from server-minted JWT */
   ensureAppUser: 'ensure_app_user',
+  /** () -> RawDataCatalog (public, allow-listed ref/obs tables) */
+  rawDataCatalog: 'raw_data_catalog',
+  /** (p_table, p_limit, p_offset, p_filter_col, p_filter_val) -> RawDataRows */
+  rawDataRows: 'raw_data_rows',
 } as const;
 
 export const MVT_LAYERS = [
@@ -441,3 +445,72 @@ export type UpdateFieldRequest = z.infer<typeof UpdateFieldRequest>;
 
 export const EnqueueRunRequest = z.object({ scenario_id: ScenarioId });
 export type EnqueueRunRequest = z.infer<typeof EnqueueRunRequest>;
+
+// ---------------------------------------------------------------- raw data browser (/data, D-031)
+
+export const RAW_DATA_TABLES = [
+  'ref.province_coverage',
+  'ref.admin_boundaries',
+  'ref.geology_units',
+  'ref.groundwater_zones',
+  'ref.irrigation_zones',
+  'ref.soil_units',
+  'ref.saline_soil_zones',
+  'ref.water_bodies',
+  'ref.grid_cells',
+  'ref.weather_grid',
+  'obs.weather_daily',
+  'obs.weather_daily_proj',
+  'obs.rain_station_daily',
+  'obs.water_quality',
+  'obs.reservoir_storage',
+  'obs.gw_level',
+] as const;
+export const RawDataTable = z.enum(RAW_DATA_TABLES);
+export type RawDataTable = z.infer<typeof RawDataTable>;
+
+export const DataSourceStatus = z.enum(['ok', 'limited', 'placeholder', 'unavailable']);
+export type DataSourceStatus = z.infer<typeof DataSourceStatus>;
+
+export const RawDataSource = z.object({
+  code: z.string(),
+  name_th: z.string().nullable(),
+  url: z.string().nullable(),
+  license: z.string().nullable(),
+  attribution_th: z.string().nullable(),
+  scale: z.string().nullable(),
+  refresh_tier: z.string().nullable(),
+  status: DataSourceStatus.nullable(),
+  target_tables: z.array(z.string()).nullable(),
+  last_success_at: z.string().nullable(),
+  latest_version: z.string().nullable(),
+  latest_rows: z.number().nullable(),
+  latest_at: z.string().nullable(),
+});
+export type RawDataSource = z.infer<typeof RawDataSource>;
+
+export const RawDataTableInfo = z.object({
+  table: RawDataTable,
+  rows: z.number(),
+  estimated: z.boolean(),
+  columns: z.array(z.string()),
+  sources: z.array(z.string()),
+});
+export type RawDataTableInfo = z.infer<typeof RawDataTableInfo>;
+
+export const RawDataCatalog = z.object({
+  sources: z.array(RawDataSource),
+  tables: z.array(RawDataTableInfo),
+});
+export type RawDataCatalog = z.infer<typeof RawDataCatalog>;
+
+export const RawDataRows = z.object({
+  table: RawDataTable,
+  columns: z.array(z.string()),
+  total: z.number(),
+  estimated: z.boolean(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+  rows: z.array(z.record(z.string(), z.unknown())),
+});
+export type RawDataRows = z.infer<typeof RawDataRows>;
